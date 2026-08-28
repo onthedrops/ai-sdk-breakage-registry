@@ -1,0 +1,82 @@
+name: Verify Registry
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/**"
+      - "generated/**"
+      - "scripts/**"
+      - "tests/**"
+      - ".github/workflows/verify-registry.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/**"
+      - "generated/**"
+      - "scripts/**"
+      - "tests/**"
+  schedule:
+    # Weekly URL liveness check: Sundays at 09:00 UTC
+    - cron: "0 9 * * 0"
+  workflow_dispatch:
+    inputs:
+      check-urls:
+        description: "Verify source URL liveness (network)"
+        type: boolean
+        default: false
+
+jobs:
+  # ── Deterministic checks: run on every push/PR ──
+  verify:
+    name: Structural & Self-Consistency Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml pytest
+
+      - name: Run existing test suite
+        run: python -m pytest tests/ -v
+
+      - name: Verify registry entries (deterministic)
+        run: python scripts/verify_registry.py
+
+      - name: Check registry.json is in sync
+        run: python scripts/build_registry.py --check
+
+  # ── URL + content liveness: weekly schedule + manual dispatch ──
+  url-check:
+    name: Source URL & Content Verification
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.check-urls == true)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Verify source URLs are live
+        run: python scripts/verify_registry.py --check-urls
+
+      - name: Verify source content matches registry entries
+        run: python scripts/verify_registry.py --check-content
+
+      - name: Create issue on failures
+        if: failure()
+        run: |
+          echo "One or more source URLs are no longer accessible or content has drifted."
+          echo "Run locally: python scripts/verify_registry.py --check-urls --check-content"
+          exit 1

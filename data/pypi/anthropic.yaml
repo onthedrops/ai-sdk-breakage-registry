@@ -1,0 +1,77 @@
+package: anthropic
+ecosystem: pypi
+from_version_range: "<0.20.0"
+to_version_range: ">=0.20.0"
+severity: high
+category: api_break
+summary: "Anthropic Python SDK v0.20+ migrated from the legacy Completions API to the Messages API, changing the primary client interface and method signatures."
+
+changes:
+  - symbol_before: "client.completions.create"
+    symbol_after: "client.messages.create"
+    change_type: renamed_method
+    before: |
+      import anthropic
+      client = anthropic.Client("sk-ant-...")
+      response = client.completions.create(
+          model="claude-2",
+          prompt=f"{anthropic.HUMAN_PROMPT}Hello{anthropic.AI_PROMPT}",
+          max_tokens_to_sample=100,
+      )
+      text = response.completion
+    after: |
+      from anthropic import Anthropic
+      client = Anthropic()
+      response = client.messages.create(
+          model="claude-3-5-sonnet-20241022",
+          messages=[{"role": "user", "content": "Hello"}],
+          max_tokens=100,
+      )
+      text = response.content[0].text
+    detection:
+      regex:
+        - "client\\.completions\\.create"
+        - "anthropic\\.HUMAN_PROMPT"
+        - "anthropic\\.AI_PROMPT"
+        - "max_tokens_to_sample"
+    migration_note: "The Completions API (using HUMAN_PROMPT/AI_PROMPT) was replaced by the Messages API. Use client.messages.create() with messages array. max_tokens_to_sample renamed to max_tokens. Response structure changed from response.completion to response.content[0].text."
+
+  - symbol_before: "anthropic.HUMAN_PROMPT / anthropic.AI_PROMPT"
+    symbol_after: "messages=[{'role': 'user', 'content': '...'}]"
+    change_type: removed_method
+    before: |
+      import anthropic
+      prompt = f"{anthropic.HUMAN_PROMPT}What is 2+2?{anthropic.AI_PROMPT}"
+    after: |
+      from anthropic import Anthropic
+      messages = [{"role": "user", "content": "What is 2+2?"}]
+    detection:
+      regex:
+        - "HUMAN_PROMPT"
+        - "AI_PROMPT"
+    migration_note: "HUMAN_PROMPT and AI_PROMPT constants removed. Use the messages list format with role/content dictionaries."
+
+  - symbol_before: "anthropic.Client"
+    symbol_after: "anthropic.Anthropic"
+    change_type: renamed_class
+    before: |
+      import anthropic
+      client = anthropic.Client("sk-ant-...")
+    after: |
+      from anthropic import Anthropic
+      client = Anthropic()
+    detection:
+      regex:
+        - "anthropic\\.Client\\("
+    migration_note: "Client class renamed to Anthropic. API key now read from ANTHROPIC_API_KEY env var by default."
+
+sources:
+  - title: "Anthropic Python SDK Changelog"
+    url: "https://github.com/anthropics/anthropic-sdk-python/blob/main/CHANGELOG.md"
+  - title: "Anthropic SDK Releases"
+    url: "https://github.com/anthropics/anthropic-sdk-python/releases"
+  - title: "Anthropic SDK Changelog Tracker"
+    url: "https://aichangewatch.com/anthropic/sdk"
+
+last_verified: "2026-08-15"
+confidence: high

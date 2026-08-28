@@ -1,0 +1,690 @@
+package: langchain
+ecosystem: pypi
+from_version_range: ">=0.1.0,<0.2.0"
+to_version_range: ">=0.2.0"
+severity: high
+category: api_break
+summary: "LangChain v0.2 extracted langchain-core as a separate package, moved ChatModels to provider packages, and changed import paths from langchain.* to langchain_core.*"
+
+changes:
+  - symbol_before: "from langchain.schema import HumanMessage, AIMessage, SystemMessage"
+    symbol_after: "from langchain_core.messages import HumanMessage, AIMessage, SystemMessage"
+    change_type: import_path_changed
+    before: |
+      from langchain.schema import HumanMessage, AIMessage, SystemMessage
+    after: |
+      from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+    detection:
+      regex:
+        - "from langchain\\.schema import.*Message"
+      import_patterns:
+        - "from langchain.schema import"
+    migration_note: "Message types moved to langchain_core.messages. Run langchain-cli migrate to auto-fix imports."
+
+  - symbol_before: "from langchain.chat_models import ChatOpenAI"
+    symbol_after: "from langchain_openai import ChatOpenAI"
+    change_type: import_path_changed
+    before: |
+      from langchain.chat_models import ChatOpenAI
+      llm = ChatOpenAI(model="gpt-4")
+    after: |
+      from langchain_openai import ChatOpenAI
+      llm = ChatOpenAI(model="gpt-4")
+    detection:
+      regex:
+        - "from langchain\\.chat_models import"
+      import_patterns:
+        - "from langchain.chat_models import"
+    migration_note: "ChatModels moved to provider packages. Install langchain-openai, langchain-anthropic, etc. Run langchain-cli migrate."
+
+  - symbol_before: "from langchain.embeddings import OpenAIEmbeddings"
+    symbol_after: "from langchain_openai import OpenAIEmbeddings"
+    change_type: import_path_changed
+    before: |
+      from langchain.embeddings import OpenAIEmbeddings
+    after: |
+      from langchain_openai import OpenAIEmbeddings
+    detection:
+      regex:
+        - "from langchain\\.embeddings import"
+    migration_note: "Embedding models moved to provider packages."
+
+  - symbol_before: "from langchain.vectorstores import Chroma"
+    symbol_after: "from langchain_community.vectorstores import Chroma"
+    change_type: import_path_changed
+    before: |
+      from langchain.vectorstores import Chroma
+    after: |
+      from langchain_community.vectorstores import Chroma
+    detection:
+      regex:
+        - "from langchain\\.vectorstores import"
+    migration_note: "Vector stores moved to langchain-community package. Provider-specific stores (Chroma, Pinecone) have separate packages: langchain-chroma, langchain-pinecone, etc."
+
+  - symbol_before: "from langchain.llms import OpenAI"
+    symbol_after: "from langchain_openai import OpenAI"
+    change_type: import_path_changed
+    before: |
+      from langchain.llms import OpenAI
+    after: |
+      from langchain_openai import OpenAI
+    detection:
+      regex:
+        - "from langchain\\.llms import"
+    migration_note: "LLM classes moved to provider packages. Note: LLMs (non-chat) are being deprecated in favor of ChatModels."
+
+  - symbol_before: "langchain.ChatOpenAI(...)  # without specifying model"
+    symbol_after: "langchain_openai.ChatOpenAI(model='gpt-4')  # model required"
+    change_type: parameter_required
+    before: |
+      from langchain.chat_models import ChatOpenAI
+      llm = ChatOpenAI()  # defaulted to a model
+    after: |
+      from langchain_openai import ChatOpenAI
+      llm = ChatOpenAI(model="gpt-4")  # must specify explicitly
+    detection:
+      regex:
+        - "ChatOpenAI\\(\\)"
+    migration_note: "LangChain 0.2 requires explicit model/LLM specification. No more default model instantiation."
+
+  - symbol_before: "from langchain.schema.document import Document"
+    symbol_after: "from langchain_core.documents import Document"
+    change_type: import_path_changed
+    before: |
+      from langchain.schema.document import Document
+    after: |
+      from langchain_core.documents import Document
+    detection:
+      regex:
+        - "from langchain\\.schema\\.document import"
+    migration_note: "Document class moved from langchain.schema.document to langchain_core.documents."
+
+  - symbol_before: "from langchain.text_splitter import RecursiveCharacterTextSplitter"
+    symbol_after: "from langchain_text_splitters import RecursiveCharacterTextSplitter"
+    change_type: import_path_changed
+    before: |
+      from langchain.text_splitter import RecursiveCharacterTextSplitter
+    after: |
+      from langchain_text_splitters import RecursiveCharacterTextSplitter
+    detection:
+      regex:
+        - "from langchain\\.text_splitter import"
+    migration_note: "Text splitters moved to langchain-text-splitters package. Install with pip install langchain-text-splitters."
+
+  - symbol_before: "from langchain.document_loaders import UnstructuredMarkdownLoader"
+    symbol_after: "from langchain_community.document_loaders import UnstructuredMarkdownLoader"
+    change_type: import_path_changed
+    before: |
+      from langchain.document_loaders import UnstructuredMarkdownLoader
+    after: |
+      from langchain_community.document_loaders import UnstructuredMarkdownLoader
+    detection:
+      regex:
+        - "from langchain\\.document_loaders import"
+    migration_note: "Document loaders moved to langchain-community package. Install langchain-community."
+
+  - symbol_before: "from langchain_community.chat_models import ChatOpenAI"
+    symbol_after: "from langchain_openai import ChatOpenAI"
+    change_type: import_path_changed
+    before: |
+      from langchain_community.chat_models import ChatOpenAI
+    after: |
+      from langchain_openai import ChatOpenAI
+    detection:
+      regex:
+        - "from langchain_community\\.chat_models import ChatOpenAI"
+    migration_note: "ChatOpenAI moved from langchain-community to langchain-openai provider package. Install langchain-openai."
+
+  - symbol_before: "from langchain_community.embeddings import OpenAIEmbeddings"
+    symbol_after: "from langchain_openai import OpenAIEmbeddings"
+    change_type: import_path_changed
+    before: |
+      from langchain_community.embeddings import OpenAIEmbeddings
+    after: |
+      from langchain_openai import OpenAIEmbeddings
+    detection:
+      regex:
+        - "from langchain_community\\.embeddings import OpenAIEmbeddings"
+    migration_note: "OpenAIEmbeddings moved from langchain-community to langchain-openai provider package."
+
+  - symbol_before: "from langchain_community.llms import OpenAI"
+    symbol_after: "from langchain_openai import OpenAI"
+    change_type: import_path_changed
+    before: |
+      from langchain_community.llms import OpenAI
+    after: |
+      from langchain_openai import OpenAI
+    detection:
+      regex:
+        - "from langchain_community\\.llms import OpenAI"
+    migration_note: "OpenAI LLM moved from langchain-community to langchain-openai provider package."
+
+  - symbol_before: "from langchain.utils.function_calling import convert_pydantic_to_openai_function"
+    symbol_after: "from langchain_core.utils.function_calling import convert_to_openai_function"
+    change_type: import_path_changed
+    before: |
+      from langchain.utils.function_calling import convert_pydantic_to_openai_function
+    after: |
+      from langchain_core.utils.function_calling import convert_to_openai_function
+    detection:
+      regex:
+        - "from langchain\\.utils\\.function_calling import"
+    migration_note: "Function calling utilities moved from langchain.utils to langchain_core.utils. Function names also changed: convert_pydantic_to_openai_function -> convert_to_openai_function, etc."
+
+  - symbol_before: "convert_pydantic_to_openai_function"
+    symbol_after: "convert_to_openai_function"
+    change_type: renamed_function
+    before: |
+      convert_pydantic_to_openai_function(pydantic_model)
+    after: |
+      convert_to_openai_function(pydantic_model)
+    detection:
+      regex:
+        - "convert_pydantic_to_openai_function"
+    migration_note: "Function renamed. Also update import: from langchain_core.utils.function_calling import convert_to_openai_function."
+
+  - symbol_before: "convert_pydantic_to_openai_tool"
+    symbol_after: "convert_to_openai_tool"
+    change_type: renamed_function
+    before: |
+      convert_pydantic_to_openai_tool(pydantic_model)
+    after: |
+      convert_to_openai_tool(pydantic_model)
+    detection:
+      regex:
+        - "convert_pydantic_to_openai_tool"
+    migration_note: "Function renamed. Also update import: from langchain_core.utils.function_calling import convert_to_openai_tool."
+
+  - symbol_before: "convert_python_function_to_openai_function"
+    symbol_after: "convert_to_openai_function"
+    change_type: renamed_function
+    before: |
+      convert_python_function_to_openai_function(func)
+    after: |
+      convert_to_openai_function(func)
+    detection:
+      regex:
+        - "convert_python_function_to_openai_function"
+    migration_note: "Function renamed to convert_to_openai_function. Update import: from langchain_core.utils.function_calling import convert_to_openai_function."
+
+  - symbol_before: "format_tool_to_openai_function"
+    symbol_after: "convert_to_openai_function"
+    change_type: renamed_function
+    before: |
+      format_tool_to_openai_function(tool)
+    after: |
+      convert_to_openai_function(tool)
+    detection:
+      regex:
+        - "format_tool_to_openai_function"
+    migration_note: "Function renamed to convert_to_openai_function. Update import: from langchain_core.utils.function_calling import convert_to_openai_function."
+
+  - symbol_before: "format_tool_to_openai_tool"
+    symbol_after: "convert_to_openai_tool"
+    change_type: renamed_function
+    before: |
+      format_tool_to_openai_tool(tool)
+    after: |
+      convert_to_openai_tool(tool)
+    detection:
+      regex:
+        - "format_tool_to_openai_tool"
+    migration_note: "Function renamed to convert_to_openai_tool. Update import: from langchain_core.utils.function_calling import convert_to_openai_tool."
+
+  - symbol_before: "retriever.get_relevant_documents(query)"
+    symbol_after: "retriever.invoke(query)"
+    change_type: method_renamed
+    before: |
+      docs = retriever.get_relevant_documents(query)
+    after: |
+      docs = retriever.invoke(query)
+    detection:
+      regex:
+        - "\\.get_relevant_documents\\("
+    migration_note: "BaseRetriever.get_relevant_documents() deprecated in favor of .invoke(). Same arguments, same return type."
+
+  - symbol_before: "retriever.aget_relevant_documents(query)"
+    symbol_after: "retriever.ainvoke(query)"
+    change_type: method_renamed
+    before: |
+      docs = await retriever.aget_relevant_documents(query)
+    after: |
+      docs = await retriever.ainvoke(query)
+    detection:
+      regex:
+        - "\\.aget_relevant_documents\\("
+    migration_note: "BaseRetriever.aget_relevant_documents() deprecated in favor of .ainvoke(). Same arguments, same return type."
+
+  - symbol_before: "initialize_agent(tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION)"
+    symbol_after: "create_react_agent(llm, tools)"
+    change_type: api_removed
+    before: |
+      from langchain.agents import initialize_agent, AgentType
+      agent = initialize_agent(tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION)
+    after: |
+      from langchain.agents import create_react_agent
+      agent = create_react_agent(llm, tools)
+    detection:
+      regex:
+        - "initialize_agent\\("
+    migration_note: "initialize_agent() deprecated. Use create_react_agent(), create_json_agent(), create_structured_chat_agent(), etc. Requires manual migration as constructor signatures differ."
+
+  # ── Manual migration warnings (no auto-fix — require structural code changes) ──
+
+  - symbol_before: "chain.run(query)"
+    symbol_after: "chain.invoke(query)"
+    change_type: method_renamed
+    before: |
+      result = chain.run(query)
+    after: |
+      result = chain.invoke(query)
+    detection:
+      regex:
+        - "\\.run\\("
+    migration_note: "Chain.run() deprecated in favor of .invoke(). Also: .call() -> .invoke(), .acall() -> .ainvoke(), .arun() -> .ainvoke(), .apply() -> .batch(). Manual migration required — too generic for auto-fix (matches subprocess.run, etc.)."
+
+  - symbol_before: "llm.predict(text)"
+    symbol_after: "llm.invoke(text)"
+    change_type: method_renamed
+    before: |
+      result = llm.predict(text)
+    after: |
+      result = llm.invoke(text)
+    detection:
+      regex:
+        - "\\.predict\\("
+    migration_note: "BaseLanguageModel.predict() deprecated in favor of .invoke(). Also: .predict_messages() -> .invoke(), .apredict() -> .ainvoke(), .apredict_messages() -> .ainvoke(). Affects BaseChatModel and BaseLLM subclasses. Manual migration required — too generic for auto-fix."
+
+  - symbol_before: "llm.call_as_llm(text)"
+    symbol_after: "llm.invoke(text)"
+    change_type: method_renamed
+    before: |
+      result = llm.call_as_llm(text)
+    after: |
+      result = llm.invoke(text)
+    detection:
+      regex:
+        - "\\.call_as_llm\\("
+    migration_note: "BaseChatModel.call_as_llm() deprecated in favor of .invoke(). Also: .call() -> .invoke() on BaseChatModel, BaseLLM, and BaseTool. Manual migration required."
+
+  - symbol_before: "tool.call(input)"
+    symbol_after: "tool.invoke(input)"
+    change_type: method_renamed
+    before: |
+      result = tool.call(input)
+    after: |
+      result = tool.invoke(input)
+    detection:
+      regex:
+        - "\\.call\\("
+    migration_note: "BaseTool.call() deprecated in favor of .invoke(). Manual migration required — too generic for auto-fix."
+
+  - symbol_before: "LLMChain(llm=llm, prompt=prompt)"
+    symbol_after: "prompt | llm"
+    change_type: api_removed
+    before: |
+      from langchain.chains import LLMChain
+      chain = LLMChain(llm=llm, prompt=prompt)
+    after: |
+      chain = prompt | llm
+    detection:
+      regex:
+        - "LLMChain\\("
+    migration_note: "LLMChain deprecated in v0.1.17. Replace with LCEL: prompt | llm. Requires structural rewrite. See: https://python.langchain.com/v0.2/docs/versions/migrating_chains/"
+
+  - symbol_before: "RetrievalQA.from_chain_type(llm, retriever)"
+    symbol_after: "create_retrieval_chain(llm, retriever)"
+    change_type: api_removed
+    before: |
+      from langchain.chains import RetrievalQA
+      qa = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
+    after: |
+      from langchain.chains import create_retrieval_chain, create_history_aware_retriever
+      rag_chain = create_retrieval_chain(create_history_aware_retriever(llm, retriever), llm)
+    detection:
+      regex:
+        - "RetrievalQA"
+    migration_note: "RetrievalQA deprecated in v0.1.17. Replace with create_retrieval_chain() + create_history_aware_retriever(). Requires structural rewrite. See: https://python.langchain.com/v0.2/docs/versions/migrating_chains/"
+
+  - symbol_before: "ConversationalRetrievalChain.from_llm(llm, retriever)"
+    symbol_after: "create_history_aware_retriever(llm, retriever) + create_retrieval_chain(llm, retriever)"
+    change_type: api_removed
+    before: |
+      from langchain.chains import ConversationalRetrievalChain
+      chain = ConversationalRetrievalChain.from_llm(llm, retriever=retriever)
+    after: |
+      from langchain.chains import create_retrieval_chain, create_history_aware_retriever
+      chain = create_retrieval_chain(create_history_aware_retriever(llm, retriever), llm)
+    detection:
+      regex:
+        - "ConversationalRetrievalChain"
+    migration_note: "ConversationalRetrievalChain deprecated in v0.1.17. Replace with create_history_aware_retriever() + create_retrieval_chain(). Requires structural rewrite."
+
+  - symbol_before: "create_extraction_chain(schema, llm)"
+    symbol_after: "llm.with_structured_output(schema)"
+    change_type: api_removed
+    before: |
+      from langchain.chains import create_extraction_chain
+      chain = create_extraction_chain(schema, llm)
+    after: |
+      chain = llm.with_structured_output(schema)
+    detection:
+      regex:
+        - "create_extraction_chain"
+    migration_note: "create_extraction_chain and create_extraction_chain_pydantic deprecated in v0.1.14. Replace with with_structured_output() on chat models that support tool calling."
+
+  - symbol_before: "create_structured_output_chain(schema, llm)"
+    symbol_after: "llm.with_structured_output(schema)"
+    change_type: api_removed
+    before: |
+      from langchain.chains import create_structured_output_chain
+      chain = create_structured_output_chain(schema, llm)
+    after: |
+      chain = llm.with_structured_output(schema)
+    detection:
+      regex:
+        - "create_structured_output_chain"
+    migration_note: "create_structured_output_chain deprecated in v0.1.1. Replace with ChatModel.with_structured_output(). Also: create_structured_output_runnable and create_openai_fn_runnable deprecated in v0.1.14."
+
+  - symbol_before: "create_openai_fn_chain(functions, llm)"
+    symbol_after: "create_openai_fn_runnable(functions, llm)"
+    change_type: api_removed
+    before: |
+      from langchain.chains import create_openai_fn_chain
+      chain = create_openai_fn_chain(functions, llm)
+    after: |
+      from langchain.chains import create_openai_fn_runnable
+      chain = create_openai_fn_runnable(functions, llm)
+    detection:
+      regex:
+        - "create_openai_fn_chain"
+    migration_note: "create_openai_fn_chain deprecated in v0.1.1. Intermediate replacement is create_openai_fn_runnable (also deprecated v0.1.14). Final replacement: with_structured_output() on chat models."
+
+  - symbol_before: "ChatPromptTemplate.from_role_strings(roles)"
+    symbol_after: "ChatPromptTemplate.from_messages(messages)"
+    change_type: method_renamed
+    before: |
+      prompt = ChatPromptTemplate.from_role_strings(roles)
+    after: |
+      prompt = ChatPromptTemplate.from_messages(messages)
+    detection:
+      regex:
+        - "from_role_strings|from_strings"
+    migration_note: "ChatPromptTemplate.from_role_strings() and from_strings() deprecated since v0.0.1. Use from_messages() class method instead."
+
+  - symbol_before: "AgentType.ZERO_SHOT_REACT_DESCRIPTION"
+    symbol_after: "create_react_agent(llm, tools)"
+    change_type: api_removed
+    before: |
+      from langchain.agents import AgentType
+      agent = initialize_agent(tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION)
+    after: |
+      from langchain.agents import create_react_agent
+      agent = create_react_agent(llm, tools)
+    detection:
+      regex:
+        - "AgentType"
+    migration_note: "AgentType enum deprecated in v0.1.0. Use new agent constructor methods: create_react_agent, create_json_agent, create_structured_chat_agent, create_openai_functions_agent, create_openai_tools_agent, create_json_chat_agent, create_xml_agent, create_self_ask_with_search."
+
+  - symbol_before: "OpenAIFunctionsAgent.from_llm_and_tools(llm, tools)"
+    symbol_after: "create_openai_functions_agent(llm, tools)"
+    change_type: api_removed
+    before: |
+      from langchain.agents import OpenAIFunctionsAgent
+      agent = OpenAIFunctionsAgent.from_llm_and_tools(llm, tools)
+    after: |
+      from langchain.agents import create_openai_functions_agent
+      agent = create_openai_functions_agent(llm, tools)
+    detection:
+      regex:
+        - "OpenAIFunctionsAgent"
+    migration_note: "OpenAIFunctionsAgent deprecated in v0.1.0. Use create_openai_functions_agent()."
+
+  - symbol_before: "ZeroShotAgent.from_llm_and_tools(llm, tools)"
+    symbol_after: "create_react_agent(llm, tools)"
+    change_type: api_removed
+    before: |
+      from langchain.agents import ZeroShotAgent
+      agent = ZeroShotAgent.from_llm_and_tools(llm, tools)
+    after: |
+      from langchain.agents import create_react_agent
+      agent = create_react_agent(llm, tools)
+    detection:
+      regex:
+        - "ZeroShotAgent"
+    migration_note: "ZeroShotAgent deprecated in v0.1.0. Use create_react_agent(). Also deprecated: ConversationalAgent -> create_react_agent, ChatAgent -> create_react_agent."
+
+  - symbol_before: "MRKLChain.from_chains(chains)"
+    symbol_after: "create_react_agent(llm, tools)"
+    change_type: api_removed
+    before: |
+      from langchain.agents import MRKLChain
+      chain = MRKLChain.from_chains(chains)
+    after: |
+      from langchain.agents import create_react_agent
+      agent = create_react_agent(llm, tools)
+    detection:
+      regex:
+        - "MRKLChain"
+    migration_note: "MRKLChain deprecated in v0.1.0. No direct replacement — use create_react_agent() or LangGraph. Also deprecated with no replacement: ReActChain, ReActDocstoreAgent, DocstoreExplorer, ReActTextWorldAgent, SelfAskWithSearchChain."
+
+  - symbol_before: "ConversationalChatAgent.from_llm_and_tools(llm, tools)"
+    symbol_after: "create_json_chat_agent(llm, tools)"
+    change_type: api_removed
+    before: |
+      from langchain.agents import ConversationalChatAgent
+      agent = ConversationalChatAgent.from_llm_and_tools(llm, tools)
+    after: |
+      from langchain.agents import create_json_chat_agent
+      agent = create_json_chat_agent(llm, tools)
+    detection:
+      regex:
+        - "ConversationalChatAgent"
+    migration_note: "ConversationalChatAgent deprecated in v0.1.0. Use create_json_chat_agent()."
+
+  - symbol_before: "StructuredChatAgent.from_llm_and_tools(llm, tools)"
+    symbol_after: "create_structured_chat_agent(llm, tools)"
+    change_type: api_removed
+    before: |
+      from langchain.agents import StructuredChatAgent
+      agent = StructuredChatAgent.from_llm_and_tools(llm, tools)
+    after: |
+      from langchain.agents import create_structured_chat_agent
+      agent = create_structured_chat_agent(llm, tools)
+    detection:
+      regex:
+        - "StructuredChatAgent"
+    migration_note: "StructuredChatAgent deprecated in v0.1.0. Use create_structured_chat_agent()."
+
+  - symbol_before: "OpenAIMultiFunctionsAgent.from_llm_and_tools(llm, tools)"
+    symbol_after: "create_openai_tools_agent(llm, tools)"
+    change_type: api_removed
+    before: |
+      from langchain.agents import OpenAIMultiFunctionsAgent
+      agent = OpenAIMultiFunctionsAgent.from_llm_and_tools(llm, tools)
+    after: |
+      from langchain.agents import create_openai_tools_agent
+      agent = create_openai_tools_agent(llm, tools)
+    detection:
+      regex:
+        - "OpenAIMultiFunctionsAgent"
+    migration_note: "OpenAIMultiFunctionsAgent deprecated in v0.1.0. Use create_openai_tools_agent()."
+
+  - symbol_before: "SelfAskWithSearchAgent.from_llm_and_tools(llm, tools)"
+    symbol_after: "create_self_ask_with_search(llm, tools)"
+    change_type: api_removed
+    before: |
+      from langchain.agents import SelfAskWithSearchAgent
+      agent = SelfAskWithSearchAgent.from_llm_and_tools(llm, tools)
+    after: |
+      from langchain.agents import create_self_ask_with_search
+      agent = create_self_ask_with_search(llm, tools)
+    detection:
+      regex:
+        - "SelfAskWithSearchAgent"
+    migration_note: "SelfAskWithSearchAgent deprecated in v0.1.0. Use create_self_ask_with_search()."
+
+  - symbol_before: "XMLAgent.from_llm_and_tools(llm, tools)"
+    symbol_after: "create_xml_agent(llm, tools)"
+    change_type: api_removed
+    before: |
+      from langchain.agents import XMLAgent
+      agent = XMLAgent.from_llm_and_tools(llm, tools)
+    after: |
+      from langchain.agents import create_xml_agent
+      agent = create_xml_agent(llm, tools)
+    detection:
+      regex:
+        - "XMLAgent"
+    migration_note: "XMLAgent deprecated in v0.1.0. Use create_xml_agent()."
+
+  - symbol_before: "load_agent(path)"
+    symbol_after: ""
+    change_type: api_removed
+    before: |
+      from langchain.agents import load_agent, load_agent_from_config
+      agent = load_agent(path)
+    after: ""
+    detection:
+      regex:
+        - "load_agent\\(|load_agent_from_config\\("
+    migration_note: "load_agent() and load_agent_from_config() deprecated in v0.1.0. No direct replacement. Use LangGraph or new agent constructor methods."
+
+  - symbol_before: "LLMSingleActionAgent"
+    symbol_after: "create_react_agent(llm, tools)"
+    change_type: api_removed
+    before: |
+      from langchain.agents import LLMSingleActionAgent, Agent
+    after: |
+      from langchain.agents import create_react_agent
+    detection:
+      regex:
+        - "LLMSingleActionAgent|\\bAgent\\b"
+    migration_note: "LLMSingleActionAgent and Agent base classes deprecated in v0.1.0. Use LangGraph or new agent constructor methods."
+
+  - symbol_before: "VectorStoreIndexWrapper.vectorstore.query(question)"
+    symbol_after: "vectorstore.similarity_search(question) | llm"
+    change_type: api_removed
+    before: |
+      from langchain.indexes import VectorStoreIndexWrapper
+      wrapper = VectorStoreIndexWrapper(vectorstore=vs)
+      answer = wrapper.query(question)
+    after: |
+      from langchain_core.output_parsers import StrOutputParser
+      from langchain_core.prompts import ChatPromptTemplate
+      from langchain_core.runnables import RunnablePassthrough
+      chain = ({\"context\": vs.as_retriever(), \"question\": RunnablePassthrough()} | prompt | llm | StrOutputParser())
+      answer = chain.invoke(question)
+    detection:
+      regex:
+        - "VectorStoreIndexWrapper"
+    migration_note: "VectorStoreIndexWrapper.query/query_with_sources/aquery_with_sources deprecated. Pass an explicit LLM. Also: VectorStoreIndexCreator requires explicit embedding model. Requires structural rewrite."
+
+  - symbol_before: "FlareChain.from_llm_and_retriever(llm, retriever)"
+    symbol_after: ""
+    change_type: api_removed
+    before: |
+      from langchain.chains import FlareChain
+      chain = FlareChain.from_llm_and_retriever(llm, retriever)
+    after: ""
+    detection:
+      regex:
+        - "FlareChain"
+    migration_note: "FlareChain deprecated. Pass an explicit LLM. Requires structural rewrite."
+
+  - symbol_before: "NatBotChain.from_default(llm)"
+    symbol_after: "NatBotChain.from_llm(llm)"
+    change_type: method_renamed
+    before: |
+      from langchain.natbot import NatBotChain
+      chain = NatBotChain.from_default(llm)
+    after: |
+      from langchain.natbot import NatBotChain
+      chain = NatBotChain.from_llm(llm)
+    detection:
+      regex:
+        - "from_default\\("
+    migration_note: "NatBotChain.from_default() removed. Use from_llm() class method instead."
+
+  - symbol_before: "try_load_from_hub(repo_id)"
+    symbol_after: ""
+    change_type: api_removed
+    before: |
+      from langchain_core.utils.loading import try_load_from_hub
+      obj = try_load_from_hub(repo_id)
+    after: ""
+    detection:
+      regex:
+        - "try_load_from_hub"
+    migration_note: "try_load_from_hub deprecated in v0.1.30. Using hwchase17/langchain-hub repo for prompts is deprecated. Use https://smith.langchain.com/hub instead."
+
+  - symbol_before: "from langchain.retrievers.document_compressors import CohereRerank"
+    symbol_after: "from langchain_cohere import CohereRerank"
+    change_type: import_path_changed
+    before: |
+      from langchain.retrievers.document_compressors import CohereRerank
+    after: |
+      from langchain_cohere import CohereRerank
+    detection:
+      regex:
+        - "from langchain\\.retrievers\\.document_compressors import.*CohereRerank"
+    migration_note: "CohereRerank moved to langchain-cohere provider package. Install with pip install langchain-cohere."
+
+  - symbol_before: "RunTypeEnum"
+    symbol_after: "Use string instead"
+    change_type: api_removed
+    before: |
+      from langchain_core.tracers.schemas import RunTypeEnum, TracerSessionV1, BaseRun, LLMRun, ChainRun, ToolRun
+    after: |
+      from langchain_core.tracers.schemas import Run
+    detection:
+      regex:
+        - "RunTypeEnum|TracerSessionV1|BaseRun|LLMRun|ChainRun|ToolRun"
+    migration_note: "Tracer schema classes deprecated since v0.1.0: RunTypeEnum (use string), TracerSessionV1/Base/Create (no replacement), BaseRun/LLMRun/ChainRun/ToolRun (use Run). All scheduled for removal in v0.3.0."
+
+  - symbol_before: "astream_events(version='v1')"
+    symbol_after: "astream_events(version='v2')"
+    change_type: api_removed
+    before: |
+      async for event in llm.astream_events(input, version='v1'):
+          ...
+    after: |
+      async for event in llm.astream_events(input, version='v2'):
+          ...
+    detection:
+      regex:
+        - "astream_events.*v1"
+    migration_note: "astream_events V1 is deprecated. Migrate to V2. See: https://python.langchain.com/v0.2/docs/versions/migrating_astream_events/"
+
+  - symbol_before: "@tool decorator (old behavior)"
+    symbol_after: "@tool decorator (new behavior)"
+    change_type: behavior_changed
+    before: |
+      @tool
+      def my_tool(x: str) -> str:
+          \"\"\"Some description.\"\"\"
+          return \"something\"
+      # my_tool.description == 'my_tool: (x: str) -> str - Some description.'
+    after: |
+      @tool
+      def my_tool(x: str) -> str:
+          \"\"\"Some description.\"\"\"
+          return \"something\"
+      # my_tool.description == 'Some description.'
+    detection:
+      regex:
+        - "@tool"
+    migration_note: "The @tool decorator behavior changed in v0.2.0. The tool description is now the function docstring only (no longer includes function signature). Manual review of tool descriptions may be needed."
+
+sources:
+  - title: "LangChain v0.2 Migration Guide"
+    url: "https://python.langchain.com/docs/versions/v0_2/"
+  - title: "LangChain v0.2 Blog Post"
+    url: "https://www.langchain.com/blog/langchain-v02-leap-to-stability"
+  - title: "LangChain v0.2 Deprecations and Breaking Changes"
+    url: "https://python.langchain.com/v0.2/docs/versions/v0_2/deprecations/"
+  - title: "LangChain Release Policy"
+    url: "https://docs.langchain.com/oss/python/release-policy"
+
+last_verified: "2026-08-15"
+confidence: high

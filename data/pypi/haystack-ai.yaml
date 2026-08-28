@@ -1,0 +1,354 @@
+package: haystack-ai
+ecosystem: pypi
+from_version_range: <2.0.0
+to_version_range: '>=2.0.0'
+severity: critical
+category: api_break
+summary: The farm-haystack package was replaced by haystack-ai for Haystack 2.x; the two cannot coexist.
+changes:
+- symbol_before: farm-haystack
+  symbol_after: haystack-ai
+  change_type: removed_class
+  before: 'pip install farm-haystack
+
+    '
+  after: 'pip install haystack-ai
+
+    '
+  detection:
+    regex:
+    - pip install farm-haystack
+  migration_note: The entire Haystack 1.x distribution package farm-haystack was replaced by haystack-ai for Haystack 2.x.
+    The two packages cannot coexist in the same Python environment — installing both causes conflicts because the package
+    manager treats them as the same haystack module namespace. Users must uninstall both then install only haystack-ai. The
+    farm keyword was dropped from the package name to reflect the move away from the FARM library.
+- symbol_before: haystack.nodes.BM25Retriever, FARMReader, EmbeddingRetriever, DensePassageRetriever
+  symbol_after: haystack.components.retrievers.InMemoryBM25Retriever, haystack.components.readers.ExtractiveReader
+  change_type: import_path_changed
+  before: 'from haystack.nodes import BM25Retriever, FARMReader, EmbeddingRetriever, DensePassageRetriever
+
+    '
+  after: 'from haystack.components.retrievers import InMemoryBM25Retriever
+
+    from haystack.components.retrievers.in_memory import InMemoryEmbeddingRetriever
+
+    from haystack.components.readers import ExtractiveReader
+
+    '
+  detection:
+    regex:
+    - from haystack\.nodes import
+  migration_note: 'The entire haystack.nodes module was removed in Haystack 2.x. Nodes were replaced by components under haystack.components.
+    Importing from haystack.nodes raises ModuleNotFoundError: No module named ''haystack.nodes''. Each 1.x node maps to a
+    component in a specific submodule (retrievers, readers, embedders, generators, converters, builders).'
+- symbol_before: Pipeline.add_node
+  symbol_after: Pipeline.add_component, Pipeline.connect
+  change_type: api_removed
+  before: 'pipeline.add_node(component=retriever, name="Retriever", inputs=["Query"])
+
+    pipeline.add_node(component=reader, name="Reader", inputs=["Retriever"])
+
+    '
+  after: 'pipeline.add_component("retriever", retriever)
+
+    pipeline.add_component("reader", reader)
+
+    pipeline.connect("retriever.documents", "reader.documents")
+
+    '
+  detection:
+    regex:
+    - \.add_node\s*\(
+  migration_note: The Pipeline.add_node() method was removed entirely in Haystack 2.x. The 1.x model of adding named nodes
+    with explicit inputs=['Query'] / inputs=['Retriever'] connection lists is replaced by add_component(name, component) followed
+    by connect(source.output, target.input). Connections are now made by explicit output-to-input name wiring rather than
+    by node name references. Incompatible component connections raise PipelineConnectError.
+- symbol_before: Pipeline.run(query=...)
+  symbol_after: 'Pipeline.run({''component'': {''query'': ...}})'
+  change_type: behavior_changed
+  before: 'result = pipeline.run(query="What is machine learning?")
+
+    '
+  after: 'result = pipeline.run({"retriever": {"query": "What is machine learning?"}})
+
+    '
+  detection:
+    regex:
+    - pipeline\.run\(query=
+  migration_note: The Pipeline.run() signature changed from accepting top-level keyword arguments (e.g. query=, params=, documents=)
+    to accepting a single nested dictionary keyed by component name. Each component receives its inputs as a sub-dictionary.
+    Pipeline output is likewise keyed by component name, accessed as result['reader']['answers'] instead of flat top-level
+    keys.
+- symbol_before: haystack.pipelines.ExtractiveQAPipeline
+  symbol_after: haystack.Pipeline
+  change_type: removed_class
+  before: 'from haystack.pipelines import ExtractiveQAPipeline
+
+
+    pipe = ExtractiveQAPipeline(reader, retriever)
+
+    '
+  after: 'from haystack import Pipeline
+
+
+    pipe = Pipeline()
+
+    pipe.add_component("retriever", retriever)
+
+    pipe.add_component("reader", reader)
+
+    pipe.connect("retriever.documents", "reader.documents")
+
+    '
+  detection:
+    regex:
+    - from haystack\.pipelines import
+  migration_note: The pre-built pipeline classes from haystack.pipelines (e.g. ExtractiveQAPipeline, GenerativeQAPipeline,
+    FAQPipeline, TranslationWrapperPipeline, JoinDocuments, MostSimilarDocumentsPipeline, RootNode) were all removed in Haystack
+    2.x. There is no direct 1:1 replacement class; users must compose pipelines manually using the generic Pipeline class
+    with add_component() and connect().
+- symbol_before: haystack.nodes.base.BaseComponent
+  symbol_after: haystack.component decorator
+  change_type: behavior_changed
+  before: "from haystack.nodes.base import BaseComponent\n\nclass CustomProcessor(BaseComponent):\n    def run(self, documents):\n\
+    \        return {\"documents\": processed_docs}, \"output_1\"\n"
+  after: "from haystack import component\n\n@component\nclass CustomProcessor:\n    def __init__(self, param: str):\n    \
+    \    self.param = param\n\n    @component.output_types(documents=List[Document])\n    def run(self, documents: List[Document])\
+    \ -> Dict[str, Any]:\n        return {\"documents\": processed_docs}\n"
+  detection:
+    regex:
+    - from haystack\.nodes\.base import BaseComponent
+  migration_note: Custom components changed from inheriting BaseComponent to using the @component decorator on a plain class.
+    The run() method must declare output types via @component.output_types(...) decorator and must return a plain dictionary
+    (not a tuple of dict + output name as in 1.x). Type annotations on run() parameters are required for the pipeline's type-checking
+    and validation.
+- symbol_before: haystack.nodes.FARMReader
+  symbol_after: haystack.components.readers.ExtractiveReader
+  change_type: renamed_class
+  before: 'from haystack.nodes import FARMReader
+
+
+    reader = FARMReader(model_name_or_path="deepset/roberta-base-squad2")
+
+    '
+  after: 'from haystack.components.readers import ExtractiveReader
+
+
+    reader = ExtractiveReader(model="deepset/roberta-base-squad2")
+
+    '
+  detection:
+    regex:
+    - from haystack\.nodes import.*FARMReader
+  migration_note: FARMReader and TransformersReader were both removed and unified into a single ExtractiveReader component.
+    This reflects the move away from the FARM library. The constructor parameter model_name_or_path was renamed to model.
+- symbol_before: model_name_or_path / model_name parameter
+  symbol_after: model parameter
+  change_type: parameter_renamed
+  before: 'reader = FARMReader(model_name_or_path="deepset/roberta-base-squad2")
+
+    embedder = SentenceTransformersEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+    generator = OpenAIGenerator(model_name_or_path="gpt-4")
+
+    '
+  after: 'reader = ExtractiveReader(model="deepset/roberta-base-squad2")
+
+    embedder = SentenceTransformersEmbedder(model="sentence-transformers/all-MiniLM-L6-v2")
+
+    generator = OpenAIGenerator(model="gpt-4")
+
+    '
+  detection:
+    regex:
+    - model_name_or_path=
+    - model_name=
+  migration_note: Across all Embedders, Generators, Readers, and various other components, the model_name_or_path and model_name
+    parameters were uniformly renamed to model. This is a breaking change introduced in Haystack 2.0.0-beta.5 and carried
+    through to the stable 2.0 release.
+- symbol_before: haystack.nodes.BM25Retriever
+  symbol_after: haystack.components.retrievers.InMemoryBM25Retriever
+  change_type: renamed_class
+  before: 'from haystack.nodes import BM25Retriever
+
+
+    retriever = BM25Retriever(document_store=document_store, top_k=10)
+
+    '
+  after: 'from haystack.components.retrievers import InMemoryBM25Retriever
+
+
+    retriever = InMemoryBM25Retriever(document_store=document_store, top_k=10)
+
+    '
+  detection:
+    regex:
+    - from haystack\.nodes import BM25Retriever
+  migration_note: Generic retrievers in 1.x (e.g. BM25Retriever, EmbeddingRetriever, DensePassageRetriever) were replaced
+    by document-store-specific retriever components in 2.x. BM25Retriever → InMemoryBM25Retriever, EmbeddingRetriever/DensePassageRetriever
+    → InMemoryEmbeddingRetriever. Each document store now has its own specialized retriever. Retrievers are no longer generic
+    — they are tightly coupled to a specific DocumentStore implementation.
+- symbol_before: from haystack.document_stores import ElasticsearchDocumentStore
+  symbol_after: from haystack.document_stores.elasticsearch import ElasticsearchDocumentStore
+  change_type: import_path_changed
+  before: 'from haystack.document_stores import ElasticsearchDocumentStore
+
+    '
+  after: 'from haystack.document_stores.elasticsearch import ElasticsearchDocumentStore
+
+    '
+  detection:
+    regex:
+    - from haystack\.document_stores import
+  migration_note: Document store import paths were restructured in Haystack 2.x. Instead of importing all stores from the
+    top-level haystack.document_stores package, each store lives in its own submodule (e.g. haystack.document_stores.elasticsearch,
+    haystack.document_stores.in_memory). The import paths of DocumentJoiner, InMemoryDocumentStore, and InMemoryEmbeddingRetriever
+    also changed in 2.0.0-beta.5.
+- symbol_before: ElasticsearchDocumentStore(host=..., username=..., password=...)
+  symbol_after: ElasticsearchDocumentStore(hosts=[...])
+  change_type: parameter_renamed
+  before: 'document_store = ElasticsearchDocumentStore(host="localhost", username="", password="", index="document")
+
+    '
+  after: 'document_store = ElasticsearchDocumentStore(hosts=["http://localhost:9200"], index="document")
+
+    '
+  detection:
+    regex:
+    - ElasticsearchDocumentStore\(.*host=
+    - username=
+  migration_note: The host (string) parameter was replaced by hosts (list of full URLs including scheme and port). The username
+    and password parameters were removed from the constructor; authentication is now handled via the Secret type and environment
+    variables. This applies to Elasticsearch and other document store integrations.
+- symbol_before: WeaviateDocumentStore(host=..., port=..., index=..., custom_schema=...)
+  symbol_after: WeaviateDocumentStore(url=..., collection_settings=...)
+  change_type: parameter_renamed
+  before: 'document_store = WeaviateDocumentStore(host="localhost", port=8080, index="my_index", custom_schema={...})
+
+    '
+  after: 'document_store = WeaviateDocumentStore(url="http://localhost:8080", collection_settings={"class": "Default", ...})
+
+    '
+  detection:
+    regex:
+    - WeaviateDocumentStore\(.*custom_schema=
+    - WeaviateDocumentStore\(.*port=
+  migration_note: 'For Weaviate: host and port were replaced by a single url parameter. index and custom_schema were replaced
+    by collection_settings. Several 1.x parameters (name_field, embedding_dim, recreate_index, index_type) have no direct
+    replacement in 2.x.'
+- symbol_before: DocumentStore.write_document
+  symbol_after: DocumentStore.write_documents
+  change_type: method_renamed
+  before: 'document_store.write_document(doc)
+
+    '
+  after: 'document_store.write_documents([doc])
+
+    '
+  detection:
+    regex:
+    - \.write_document\s*\(
+  migration_note: The singular write_document() method was removed; the 2.x DocumentStore protocol only defines write_documents()
+    (plural), along with count_documents(), filter_documents(), and delete_documents(). All document stores in 2.x conform
+    to this uniform protocol interface.
+- symbol_before: Document.text / text_field parameter
+  symbol_after: Document.content / content_field parameter
+  change_type: behavior_changed
+  before: 'document.text  # accessing document text content
+
+
+    document_store = ElasticsearchDocumentStore(text_field="content")
+
+    '
+  after: 'document.content  # accessing document text content
+
+
+    document_store = ElasticsearchDocumentStore(content_field="content")
+
+    '
+  detection:
+    regex:
+    - document\.text
+    - text_field=
+  migration_note: The Document.text attribute was renamed to Document.content. Correspondingly, the text_field parameter in
+    ElasticsearchDocumentStore and Weaviate initialization was renamed to content_field. The Document.question attribute (used
+    in FAQ search) was removed entirely with no replacement.
+- symbol_before: Pipeline.connect(connect_from=..., connect_to=...)
+  symbol_after: Pipeline.connect(sender=..., receiver=...)
+  change_type: method_renamed
+  before: 'pipeline.connect(connect_from="retriever", connect_to="reader")
+
+    '
+  after: 'pipeline.connect(sender="retriever", receiver="reader")
+
+    '
+  detection:
+    regex:
+    - connect_from=
+    - connect_to=
+  migration_note: 'In Haystack 2.0.0-beta.7, the keyword arguments of Pipeline.connect() were renamed: connect_from → sender
+    and connect_to → receiver. This is a breaking change only when connect() was called with keyword arguments; the behavior
+    of the method did not change. The canonical 2.x idiom is positional string-based connections like connect(''retriever.documents'',
+    ''reader.documents'').'
+- symbol_before: haystack.nodes.URLCacheChecker
+  symbol_after: haystack.components.cachers.CacheChecker
+  change_type: renamed_class
+  before: 'from haystack.nodes import URLCacheChecker
+
+    '
+  after: 'from haystack.components.cachers import CacheChecker
+
+    '
+  detection:
+    regex:
+    - URLCacheChecker
+  migration_note: URLCacheChecker was renamed to CacheChecker in Haystack 2.0.0-beta.5. The component was also generalized
+    to work with any type of data in the DocumentStore, not just URLs.
+- symbol_before: answer['offset_start_in_doc'] dictionary access
+  symbol_after: answer.offsets_in_document[0].start object attribute
+  change_type: behavior_changed
+  before: 'answer["offset_start_in_doc"]
+
+    answer["offset_end_in_doc"]
+
+    answer["offset_start"]
+
+    answer["offset_end"]
+
+    '
+  after: 'answer.offsets_in_document[0].start
+
+    answer.offsets_in_document[0].end
+
+    answer.offset_in_context[0].start
+
+    answer.offset_in_context[0].end
+
+    '
+  detection:
+    regex:
+    - offset_start_in_doc
+    - offset_end_in_doc
+  migration_note: Reader return type changed from a dictionary to an Answer object. Offset access changed from dictionary
+    keys (offset_start_in_doc, offset_end_in_doc, offset_start, offset_end) to object attributes (offsets_in_document[0].start,
+    etc.). This allows for multiple answer spans (e.g. TableQA). Similarly, Label.question → Label.query, Label.answer became
+    an Answer object (not plain str), Label.document_id → Label.document.id, and Label.model_id → Label.pipeline_id.
+sources:
+- title: Haystack Migration Guide
+  url: https://docs.haystack.deepset.ai/docs/migration
+- title: 'Haystack GitHub Discussion #6684'
+  url: https://github.com/deepset-ai/haystack/discussions/6684
+- title: Simplified Guide - Haystack Migration 1 to 2
+  url: https://www.simplified.guide/haystack/haystack-migrate-1-to-2
+- title: Haystack 2 Migration Guide
+  url: https://markaicode.com/haystack-2-migration-guide/
+- title: Shaping Haystack v2 - deepset Blog
+  url: https://haystack.deepset.ai/blog/shaping-haystack-v2
+- title: 'Haystack GitHub Issue #6792'
+  url: https://github.com/deepset-ai/haystack/issues/6792
+- title: 'Haystack GitHub Discussion #8498'
+  url: https://github.com/deepset-ai/haystack/discussions/8498
+- title: 'Haystack GitHub Issue #1590'
+  url: https://github.com/deepset-ai/haystack/issues/1590
+last_verified: '2026-08-22'
+confidence: high

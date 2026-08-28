@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AI SDK Breaking Change Entry",
+  "description": "A single breaking change entry for an AI SDK migration",
+  "type": "object",
+  "required": [
+    "package",
+    "ecosystem",
+    "from_version_range",
+    "to_version_range",
+    "severity",
+    "category",
+    "summary",
+    "changes",
+    "sources",
+    "last_verified",
+    "confidence"
+  ],
+  "properties": {
+    "package": {
+      "type": "string",
+      "description": "Package name as it appears in the registry (e.g., 'openai', '@anthropic-ai/sdk')"
+    },
+    "ecosystem": {
+      "type": "string",
+      "enum": ["pypi", "npm"],
+      "description": "Package ecosystem"
+    },
+    "from_version_range": {
+      "type": "string",
+      "description": "Version range affected by the breaking change (e.g., '<1.0.0')"
+    },
+    "to_version_range": {
+      "type": "string",
+      "description": "Version range that introduced the breaking change (e.g., '>=1.0.0')"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"],
+      "description": "Severity of the breaking change"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["api_break", "removed", "renamed", "parameter_change", "return_type_change", "behavior_change", "dependency_requirement", "platform_requirement", "package_renamed"],
+      "description": "Category of breaking change"
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-line summary of the breaking change"
+    },
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["change_type", "before", "after"],
+        "properties": {
+          "symbol_before": {
+            "type": "string",
+            "description": "The old symbol/method/API path (e.g., 'openai.ChatCompletion.create')"
+          },
+          "symbol_after": {
+            "type": "string",
+            "description": "The new symbol/method/API path (e.g., 'client.chat.completions.create')"
+          },
+          "change_type": {
+            "type": "string",
+            "enum": ["renamed_method", "removed_method", "renamed_class", "removed_class", "parameter_renamed", "parameter_removed", "parameter_required", "return_type_changed", "import_path_changed", "package_renamed", "default_behavior_changed", "platform_requirement_added"],
+            "description": "Type of change"
+          },
+          "before": {
+            "type": "string",
+            "description": "Code example showing the old usage"
+          },
+          "after": {
+            "type": "string",
+            "description": "Code example showing the new usage"
+          },
+          "detection": {
+            "type": "object",
+            "description": "Patterns to detect this breaking change in code",
+            "properties": {
+              "regex": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Regex patterns that match old-style code"
+              },
+              "import_patterns": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Import statements that indicate old usage"
+              }
+            }
+          },
+          "migration_note": {
+            "type": "string",
+            "description": "Brief note on how to migrate"
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["title", "url"],
+        "properties": {
+          "title": {"type": "string"},
+          "url": {"type": "string", "format": "uri"}
+        }
+      }
+    },
+    "last_verified": {
+      "type": "string",
+      "format": "date",
+      "description": "Date this entry was last verified against official sources (YYYY-MM-DD)"
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Confidence level in the accuracy of this entry"
+    }
+  }
+}

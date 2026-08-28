@@ -1,0 +1,65 @@
+package: ai
+ecosystem: npm
+from_version_range: ">=6.0.0,<7.0.0"
+to_version_range: ">=7.0.0"
+severity: critical
+category: platform_requirement
+summary: "Vercel AI SDK v7 requires Node.js 22+, ESM imports only (no CommonJS), and moves OpenTelemetry to a separate package."
+
+changes:
+  - symbol_before: "require('ai')"
+    symbol_after: "import { ... } from 'ai'"
+    change_type: platform_requirement_added
+    before: |
+      // v6: CommonJS require() worked
+      const { generateText } = require("ai");
+    after: |
+      // v7: ESM imports required
+      import { generateText } from "ai";
+    detection:
+      regex:
+        - 'require\(.*ai.*\)'
+    migration_note: "AI SDK 7 requires ESM imports. Add type module to package.json or use .mjs file extensions. CommonJS require() is not supported."
+
+  - symbol_before: "Node.js 18+"
+    symbol_after: "Node.js 22+"
+    change_type: platform_requirement_added
+    before: |
+      // v6: Node.js 18+ was supported
+      // package.json
+      "engines": { "node": ">=18" }
+    after: |
+      // v7: Node.js 22+ required
+      // package.json
+      "engines": { "node": ">=22" }
+    detection:
+      regex:
+        - '"node":\s*">=18"'
+        - '"node":\s*">=20"'
+    migration_note: "Node.js 22 is the minimum. The SDK depends on native fetch and improved AsyncLocalStorage APIs not available in earlier LTS versions. Update your runtime and CI environments."
+
+  - symbol_before: "import { ... } from 'ai'  // OpenTelemetry inline"
+    symbol_after: "import { ... } from '@ai-sdk/otel'"
+    change_type: import_path_changed
+    before: |
+      // v6: OpenTelemetry setup was inline
+      import { generateText, experimental_telemetry } from "ai";
+    after: |
+      // v7: OpenTelemetry moved to separate package
+      import { generateText } from "ai";
+      import { telemetry } from "@ai-sdk/otel";
+    detection:
+      regex:
+        - "experimental_telemetry"
+    migration_note: "OpenTelemetry setup moved to @ai-sdk/otel package. Register telemetry globally instead of per-call."
+
+sources:
+  - title: "AI SDK 7 Migration Guide"
+    url: "https://ai-sdk.dev/docs/migration-guides/migration-guide-7-0"
+  - title: "Vercel AI SDK 7 Announcement"
+    url: "https://vercel.com/changelog/ai-sdk-7"
+  - title: "AI SDK 7 Production Agents Guide"
+    url: "https://www.developersdigest.tech/blog/vercel-ai-sdk-7-production-agents"
+
+last_verified: "2026-08-15"
+confidence: high

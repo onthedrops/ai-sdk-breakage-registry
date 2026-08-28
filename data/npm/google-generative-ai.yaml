@@ -1,0 +1,116 @@
+package: "@google/generative-ai"
+ecosystem: npm
+from_version_range: "*"
+to_version_range: "@google/genai >=1.0.0"
+severity: critical
+category: package_renamed
+summary: "@google/generative-ai npm package is deprecated. Replaced by @google/genai with a different client class, method signatures, and removed enum imports."
+
+changes:
+  - symbol_before: "import { GoogleGenerativeAI } from '@google/generative-ai'"
+    symbol_after: "import { GoogleGenAI } from '@google/genai'"
+    change_type: renamed_class
+    before: |
+      import { GoogleGenerativeAI } from "@google/generative-ai";
+      const genAI = new GoogleGenerativeAI("AIza...");
+    after: |
+      import { GoogleGenAI } from "@google/genai";
+      const ai = new GoogleGenAI({ apiKey: "AIza..." });
+    detection:
+      regex:
+        - "GoogleGenerativeAI"
+      import_patterns:
+        - "from '@google/generative-ai'"
+        - 'from "@google/generative-ai"'
+    migration_note: "Package renamed. Install @google/genai. GoogleGenerativeAI class replaced by GoogleGenAI. API key passed as object property."
+
+  - symbol_before: "genAI.getGenerativeModel({ model: 'gemini-pro' })"
+    symbol_after: "ai.models.generateContent({ model: 'gemini-2.5-flash', contents: '...' })"
+    change_type: renamed_method
+    before: |
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      const result = await model.generateContent("Hello");
+      console.log(result.response.text());
+    after: |
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: "Hello",
+      });
+      console.log(response.text);
+    detection:
+      regex:
+        - "getGenerativeModel\\("
+        - "model\\.generateContent\\("
+    migration_note: "getGenerativeModel() removed. Use ai.models.generateContent() directly with model and contents."
+
+  - symbol_before: "import { HarmCategory, HarmBlockThreshold } from '@google/generative-ai'"
+    symbol_after: "safetySettings: [{ category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' }]"
+    change_type: removed_method
+    before: |
+      import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+      const model = genAI.getGenerativeModel({
+        model: "gemini-pro",
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }
+        ]
+      });
+    after: |
+      import { GoogleGenAI } from "@google/genai";
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: "Hello",
+        config: {
+          safetySettings: [
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
+          ]
+        }
+      });
+    detection:
+      import_patterns:
+        - "HarmCategory"
+        - "HarmBlockThreshold"
+    migration_note: "HarmCategory and HarmBlockThreshold enums removed. Use string values directly in config.safetySettings."
+
+  - symbol_before: "import { SchemaType } from '@google/generative-ai'"
+    symbol_after: "String values: 'array', 'object', 'string'"
+    change_type: removed_method
+    before: |
+      import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+      const schema = { type: SchemaType.OBJECT, properties: { ... } };
+    after: |
+      import { GoogleGenAI } from "@google/genai";
+      const schema = { type: "object", properties: { ... } };
+    detection:
+      import_patterns:
+        - "SchemaType"
+    migration_note: "SchemaType enum removed. Use string values like 'array', 'object', 'string' directly."
+
+  - symbol_before: "import { GoogleAIFileManager, GoogleAICacheManager } from '@google/generative-ai/server'"
+    symbol_after: "ai.files, ai.caches"
+    change_type: import_path_changed
+    before: |
+      import { GoogleAIFileManager, GoogleAICacheManager } from "@google/generative-ai/server";
+      const fileManager = new GoogleAIFileManager("AIza...");
+      const cacheManager = new GoogleAICacheManager("AIza...");
+    after: |
+      import { GoogleGenAI } from "@google/genai";
+      const ai = new GoogleGenAI({ apiKey: "AIza..." });
+      // Use ai.files and ai.caches directly
+    detection:
+      import_patterns:
+        - "from '@google/generative-ai/server'"
+        - 'from "@google/generative-ai/server"'
+        - "GoogleAIFileManager"
+        - "GoogleAICacheManager"
+    migration_note: "GoogleAIFileManager and GoogleAICacheManager removed. Use ai.files and ai.caches on the GoogleGenAI client instance."
+
+sources:
+  - title: "Official Google GenAI SDK Migration Guide"
+    url: "https://ai.google.dev/gemini-api/docs/migrate"
+  - title: "Google AI SDK Libraries (deprecation status)"
+    url: "https://ai.google.dev/gemini-api/docs/libraries"
+  - title: "Vertex AI SDK Migration Guide"
+    url: "https://docs.cloud.google.com/vertex-ai/generative-ai/docs/deprecations/genai-vertexai-sdk"
+
+last_verified: "2026-08-15"
+confidence: high

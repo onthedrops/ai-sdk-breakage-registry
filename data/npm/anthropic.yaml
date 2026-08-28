@@ -1,0 +1,101 @@
+package: "@anthropic-ai/sdk"
+ecosystem: npm
+from_version_range: "<0.34.0"
+to_version_range: ">=0.34.0"
+severity: high
+category: api_break
+summary: "Anthropic TypeScript SDK migrated from node-fetch to builtin global fetch, removed web shims, dropped EOL Node.js versions, removed countTokens from Bedrock/Vertex clients, and removed Stream.toReadableStream(). Legacy model types also removed across versions."
+
+changes:
+  - symbol_before: "import Anthropic from 'anthropic'"
+    symbol_after: "import Anthropic from '@anthropic-ai/sdk'"
+    change_type: import_path_changed
+    before: |
+      import Anthropic from 'anthropic';
+    after: |
+      import Anthropic from '@anthropic-ai/sdk';
+    detection:
+      regex:
+        - "from 'anthropic'"
+        - "import Anthropic from 'anthropic'"
+    migration_note: "The default import path was renamed from the bare 'anthropic' specifier to the scoped '@anthropic-ai/sdk' package name (TypeScript SDK 0.20+). package.json must also be updated."
+
+  - symbol_before: "Stream.toReadableStream()"
+    symbol_after: "# use stream's async iterator or .withResponse()"
+    change_type: removed_method
+    before: |
+      const readable = stream.toReadableStream();
+    after: |
+      // use async iterator: for await (const event of stream) { ... }
+      // or use stream.withResponse() for raw access
+    detection:
+      regex:
+        - "\\.toReadableStream\\(\\)"
+    migration_note: "Stream.toReadableStream() was removed in v0.20.0. Use the stream's async iterator or the .withResponse() helper added in v0.35.0."
+
+  - symbol_before: "anthropicVertex.countTokens({...})"
+    symbol_after: "# use messages.countTokens / beta.messages.countTokens"
+    change_type: removed_method
+    before: |
+      const count = await anthropicVertex.countTokens({ model: '...', messages: [...] });
+    after: |
+      // use client.messages.countTokens() or client.beta.messages.countTokens()
+    detection:
+      regex:
+        - "anthropicVertex\\.countTokens"
+        - "anthropicBedrock\\.countTokens"
+    migration_note: "In v0.33.0 the unsupported countTokens method was removed from both Bedrock and Vertex clients. Use messages.countTokens or beta.messages.countTokens instead."
+
+  - symbol_before: "import '@anthropic-ai/sdk/shims/web'"
+    symbol_after: "# shims no longer needed; SDK uses global fetch"
+    change_type: platform_requirement_added
+    before: |
+      import '@anthropic-ai/sdk/shims/web';
+      import Anthropic from '@anthropic-ai/sdk';
+      // httpAgent option used for proxying
+    after: |
+      import Anthropic from '@anthropic-ai/sdk';
+      // SDK uses global fetch; proxy via custom fetch:
+      const client = new Anthropic({ fetch(url, init={}) { return undici.fetch(url, { ...init, dispatcher }); } });
+    detection:
+      regex:
+        - "@anthropic-ai/sdk/shims/web"
+        - "httpAgent"
+    migration_note: "v0.34+ migrated from node-fetch to built-in global fetch. Web shims no longer needed (will error if multiple SDK versions present). httpAgent option no longer works — proxying must be done via a custom fetch option."
+
+  - symbol_before: "# SDK ran on older Node.js versions including EOL releases"
+    symbol_after: "# requires supported (non-EOL) Node.js version"
+    change_type: platform_requirement_added
+    before: |
+      // SDK ran on Node.js 16 or older
+      // package.json: "engines": { "node": ">=16" }
+    after: |
+      // requires Node.js 18+ (non-EOL)
+    detection:
+      regex:
+        - "node.*16"
+    migration_note: "v0.50.0 dropped support for end-of-life Node.js versions. Combined with the builtin-fetch migration (requires Node 18+), projects on Node 16 or older must upgrade."
+
+  - symbol_before: "model: 'claude-instant-1.2'"
+    symbol_after: "# use current model identifiers"
+    change_type: api_removed
+    before: |
+      const msg = await client.messages.create({ model: 'claude-instant-1.2', max_tokens: 1024, messages: [...] });
+    after: |
+      // use current model identifiers (claude-sonnet-4-6, claude-opus-4-1, etc.)
+    detection:
+      regex:
+        - "claude-instant-1\\.2"
+        - "claude-1"
+    migration_note: "Legacy model identifiers removed/deprecated across versions: claude-instant-1.2 removed in v0.33.0, claude-1 models deprecated in v0.27.2, older deprecated models removed in v0.58.0."
+
+sources:
+  - title: "Anthropic TypeScript SDK CHANGELOG"
+    url: "https://github.com/anthropics/anthropic-sdk-typescript/blob/main/CHANGELOG.md"
+  - title: "Anthropic TypeScript SDK Releases"
+    url: "https://github.com/anthropics/anthropic-sdk-typescript/releases"
+  - title: "Anthropic SDK node-fetch Migration Issue"
+    url: "https://github.com/anthropics/anthropic-sdk-typescript/issues/645"
+
+last_verified: "2026-08-22"
+confidence: high

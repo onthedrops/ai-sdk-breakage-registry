@@ -1,0 +1,93 @@
+package: ai
+ecosystem: npm
+from_version_range: ">=5.0.0,<6.0.0"
+to_version_range: ">=6.0.0"
+severity: high
+category: api_break
+summary: "Vercel AI SDK v6 changed message structure from flat content strings to typed parts arrays, renamed Experimental_Agent to ToolLoopAgent, and changed agent parameters."
+
+changes:
+  - symbol_before: "message.content"
+    symbol_after: "message.parts"
+    change_type: return_type_changed
+    before: |
+      // v5: messages had flat content strings
+      const { messages } = useChat();
+      return messages.map(m => <div>{m.content}</div>);
+    after: |
+      // v6: messages have typed parts arrays
+      const { messages } = useChat();
+      return messages.map(m => (
+        <div>
+          {m.parts.map((part, i) => {
+            if (part.type === 'text') return <span key={i}>{part.text}</span>;
+            return null;
+          })}
+        </div>
+      ));
+    detection:
+      regex:
+        - "message\\.content"
+        - "m\\.content"
+    migration_note: "Messages no longer carry a flat content string. They carry a parts array of typed entries. Rewrite every component that renders message.content."
+
+  - symbol_before: "Experimental_Agent"
+    symbol_after: "ToolLoopAgent"
+    change_type: renamed_class
+    before: |
+      import { Experimental_Agent } from "ai";
+      const agent = new Experimental_Agent({ ... });
+    after: |
+      import { ToolLoopAgent } from "ai";
+      const agent = new ToolLoopAgent({ ... });
+    detection:
+      regex:
+        - "Experimental_Agent"
+    migration_note: "Experimental_Agent replaced by ToolLoopAgent."
+
+  - symbol_before: "agent({ system: '...' })"
+    symbol_after: "agent({ instructions: '...' })"
+    change_type: parameter_renamed
+    before: |
+      const agent = new ToolLoopAgent({
+        system: "You are a helpful assistant",
+      });
+    after: |
+      const agent = new ToolLoopAgent({
+        instructions: "You are a helpful assistant",
+      });
+    detection:
+      regex:
+        - "system:\\s*['\"`]"
+    migration_note: "The 'system' parameter is renamed to 'instructions'."
+
+  - symbol_before: "stopWhen: 1"
+    symbol_after: "stopWhen: 20"
+    change_type: default_behavior_changed
+    before: |
+      // v5: default stopWhen was 1 step
+      const agent = new ToolLoopAgent({ ... });
+      // Default: stops after 1 step
+    after: |
+      // v6: default stopWhen is 20 steps
+      const agent = new ToolLoopAgent({ ... });
+      // Default: stops after 20 steps
+      // To restore old behavior:
+      const agent = new ToolLoopAgent({ stopWhen: 1 });
+    detection:
+      regex:
+        - "stopWhen"
+    migration_note: "Default stopWhen changed from 1 step to 20 steps. Set stopWhen: 1 explicitly to restore old behavior."
+
+sources:
+  - title: "AI SDK 6 Migration Guide (DeepWiki)"
+    url: "https://deepwiki.com/vercel/ai/7.4-migration-guides"
+  - title: "Vercel AI SDK 6 Blog Post"
+    url: "https://vercel.com/blog/ai-sdk-6"
+  - title: "AI SDK 5 to 6 Migration Guide"
+    url: "https://www.rabinarayanpatra.com/blogs/vercel-ai-sdk-5-to-6-migration-guide"
+  - title: "AI SDK v5 to v6 Migration Playbook"
+    url: "https://www.digitalapplied.com/blog/vercel-ai-sdk-v5-to-v6-migration-playbook-2026"
+
+last_verified: "2026-08-15"
+confidence: high

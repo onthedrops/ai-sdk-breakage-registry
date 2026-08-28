@@ -1,0 +1,226 @@
+package: langchain
+ecosystem: pypi
+from_version_range: ">=0.2.0,<1.0.0"
+to_version_range: ">=1.0.0"
+severity: critical
+category: api_break
+summary: "LangChain v0.3 dropped Pydantic 1 support and Python 3.8. LangChain v1.0 renamed create_react_agent to create_agent, moved legacy chains/retrievers/indexes to langchain-classic, removed initialize_agent and AgentExecutor from core, replaced pre_model_hook/post_model_hook with middleware, and changed intermediate_steps tuple shape."
+
+changes:
+  - symbol_before: "from langchain_core.pydantic_v1 import BaseModel"
+    symbol_after: "from pydantic import BaseModel"
+    change_type: import_path_changed
+    before: |
+      from langchain_core.pydantic_v1 import BaseModel
+    after: |
+      from pydantic import BaseModel
+    detection:
+      regex:
+        - "from langchain_core\\.pydantic_v1 import"
+        - "from pydantic\\.v1 import"
+    migration_note: "v0.3 upgraded to Pydantic 2 internally. The Pydantic 1 compatibility bridges langchain_core.pydantic_v1 and pydantic.v1 are removed. Use Pydantic 2 directly."
+
+  - symbol_before: "python_requires >= 3.8"
+    symbol_after: "python_requires >= 3.9 (v0.3) or >= 3.10 (v1.0)"
+    change_type: platform_requirement_added
+    before: |
+      # Python 3.8 supported in v0.2
+      # setup.py / pyproject.toml: python_requires = ">=3.8"
+    after: |
+      # Python 3.9+ required for v0.3; Python 3.10+ required for v1.0
+    detection:
+      regex:
+        - "python_requires.*3\\.8"
+    migration_note: "v0.3 drops Python 3.8 support (3.9+ required). v1.0 drops Python 3.9 support (3.10+ required)."
+
+  - symbol_before: "class Config: arbitrary_types_allowed = True"
+    symbol_after: "model_config = ConfigDict(arbitrary_types_allowed=True)"
+    change_type: behavior_changed
+    before: |
+      class MyTool(BaseTool):
+          class Config:
+              arbitrary_types_allowed = True
+    after: |
+      class MyTool(BaseTool):
+          model_config = ConfigDict(arbitrary_types_allowed=True)
+    detection:
+      regex:
+        - "class Config:"
+    migration_note: "Subclasses of BaseTool, BaseChatModel, LLM must use Pydantic 2 conventions (model_config instead of class Config, model_rebuild() if needed)."
+
+  - symbol_before: "from langgraph.prebuilt import create_react_agent"
+    symbol_after: "from langchain.agents import create_agent"
+    change_type: renamed_function
+    before: |
+      from langgraph.prebuilt import create_react_agent
+      agent = create_react_agent(model="claude-sonnet-4-6", tools=[check_weather])
+    after: |
+      from langchain.agents import create_agent
+      agent = create_agent(model="claude-sonnet-4-6", tools=[check_weather])
+    detection:
+      regex:
+        - "from langgraph\\.prebuilt import create_react_agent"
+        - "create_react_agent\\("
+    migration_note: "v1.0 renames create_react_agent (in langgraph.prebuilt) to create_agent (in langchain.agents). Old function deprecated in LangGraph v1.0, slated for removal in v2.0."
+
+  - symbol_before: "create_react_agent(model=..., prompt=...)"
+    symbol_after: "create_agent(model=..., system_prompt=...)"
+    change_type: parameter_renamed
+    before: |
+      agent = create_react_agent(model="...", tools=..., prompt="You are a helpful assistant")
+    after: |
+      agent = create_agent(model="...", tools=..., system_prompt="You are a helpful assistant")
+    detection:
+      regex:
+        - "create_react_agent\\(.*prompt="
+    migration_note: "The prompt parameter is renamed to system_prompt in create_agent."
+
+  - symbol_before: "create_react_agent(model=..., pre_model_hook=...)"
+    symbol_after: "create_agent(model=..., middleware=[SummarizationMiddleware(...)])"
+    change_type: parameter_removed
+    before: |
+      agent = create_react_agent(model=..., tools=..., pre_model_hook=custom_summarization_function)
+    after: |
+      from langchain.agents.middleware import SummarizationMiddleware
+      agent = create_agent(model=..., tools=..., middleware=[SummarizationMiddleware(model=..., trigger={"tokens": 1000})])
+    detection:
+      regex:
+        - "pre_model_hook"
+    migration_note: "The pre_model_hook parameter is removed; replaced by middleware implementing a before_model method."
+
+  - symbol_before: "create_react_agent(model=..., post_model_hook=...)"
+    symbol_after: "create_agent(model=..., middleware=[HumanInTheLoopMiddleware(...)])"
+    change_type: parameter_removed
+    before: |
+      agent = create_react_agent(model=..., tools=..., post_model_hook=custom_human_in_the_loop_hook)
+    after: |
+      from langchain.agents.middleware import HumanInTheLoopMiddleware
+      agent = create_agent(model=..., tools=[...], middleware=[HumanInTheLoopMiddleware(interrupt_on={...})])
+    detection:
+      regex:
+        - "post_model_hook"
+    migration_note: "The post_model_hook parameter is removed; replaced by middleware implementing an after_model method."
+
+  - symbol_before: "from langchain.chains import LLMChain"
+    symbol_after: "from langchain_classic.chains import LLMChain"
+    change_type: import_path_changed
+    before: |
+      from langchain.chains import LLMChain
+    after: |
+      from langchain_classic.chains import LLMChain
+    detection:
+      regex:
+        - "from langchain\\.chains import"
+    migration_note: "v1.0 moves legacy chains (LLMChain, ConversationChain, etc.) to the separate langchain-classic package. Install with pip install langchain-classic."
+
+  - symbol_before: "from langchain.retrievers import MultiQueryRetriever"
+    symbol_after: "from langchain_classic.retrievers import MultiQueryRetriever"
+    change_type: import_path_changed
+    before: |
+      from langchain.retrievers import MultiQueryRetriever
+    after: |
+      from langchain_classic.retrievers import MultiQueryRetriever
+    detection:
+      regex:
+        - "from langchain\\.retrievers import"
+    migration_note: "Retrievers moved from langchain.retrievers to langchain_classic.retrievers in v1.0."
+
+  - symbol_before: "from langchain.indexes import ..."
+    symbol_after: "from langchain_classic.indexes import ..."
+    change_type: import_path_changed
+    before: |
+      from langchain.indexes import ...
+    after: |
+      from langchain_classic.indexes import ...
+    detection:
+      regex:
+        - "from langchain\\.indexes import"
+    migration_note: "The indexing API moved from langchain.indexes to langchain_classic.indexes in v1.0."
+
+  - symbol_before: "from langchain import hub"
+    symbol_after: "from langchain_classic import hub"
+    change_type: import_path_changed
+    before: |
+      from langchain import hub
+    after: |
+      from langchain_classic import hub
+    detection:
+      regex:
+        - "from langchain import hub"
+    migration_note: "The hub module moved to langchain_classic in v1.0."
+
+  - symbol_before: "from langchain.memory import ConversationBufferMemory"
+    symbol_after: "# use LangGraph checkpointer with create_agent"
+    change_type: removed_class
+    before: |
+      from langchain.memory import ConversationBufferMemory
+    after: |
+      # use a LangGraph checkpointer with create_agent
+      # or: from langchain_classic.memory import ConversationBufferMemory
+    detection:
+      regex:
+        - "from langchain\\.memory import"
+    migration_note: "Legacy memory classes (ConversationBufferMemory and siblings) removed from core in v1.0, relocated to langchain-classic. Conversational memory now handled by LangGraph's checkpointer with thread_id."
+
+  - symbol_before: "from langchain.chat_models import ChatOpenAI"
+    symbol_after: "from langchain_openai import ChatOpenAI"
+    change_type: api_removed
+    before: |
+      from langchain.chat_models import ChatOpenAI
+      from langchain.llms import OpenAI
+    after: |
+      from langchain_openai import ChatOpenAI
+    detection:
+      regex:
+        - "from langchain\\.chat_models import"
+        - "from langchain\\.llms import"
+    migration_note: "v1.0 removes provider re-exports from langchain.chat_models and langchain.llms. Use dedicated provider packages (langchain-openai, langchain-anthropic, etc.)."
+
+  - symbol_before: "response.text()"
+    symbol_after: "response.text"
+    change_type: method_renamed
+    before: |
+      text = response.text()
+    after: |
+      text = response.text
+    detection:
+      regex:
+        - "\\.text\\(\\)"
+    migration_note: "v1.0 changes .text() on message objects from a method to a property. Existing .text() calls still work but emit a deprecation warning; will be removed in v2.0."
+
+  - symbol_before: "AIMessage(content=..., example=True)"
+    symbol_after: "AIMessage(content=...)  # use additional_kwargs for extra metadata"
+    change_type: parameter_removed
+    before: |
+      msg = AIMessage(content="...", example=True)
+    after: |
+      msg = AIMessage(content="...")
+    detection:
+      regex:
+        - "AIMessage\\(.*example="
+    migration_note: "The example parameter is removed from AIMessage objects. Use additional_kwargs for passing extra metadata."
+
+  - symbol_before: "from langchain.embeddings import CacheBackedEmbeddings"
+    symbol_after: "from langchain_classic.embeddings import CacheBackedEmbeddings"
+    change_type: import_path_changed
+    before: |
+      from langchain.embeddings import CacheBackedEmbeddings
+    after: |
+      from langchain_classic.embeddings import CacheBackedEmbeddings
+    detection:
+      regex:
+        - "from langchain\\.embeddings import CacheBackedEmbeddings"
+    migration_note: "Embeddings modules such as CacheBackedEmbeddings moved to langchain-classic. The streamlined langchain.embeddings now only exposes Embeddings and init_embeddings."
+
+sources:
+  - title: "LangChain v0.3 Announcement"
+    url: "https://www.langchain.com/blog/announcing-langchain-v0-3"
+  - title: "LangChain v0.3 Migration Guide"
+    url: "https://python.langchain.com/docs/versions/v0_3/"
+  - title: "LangChain v1 Migration Guide"
+    url: "https://docs.langchain.com/oss/python/migrate/langchain-v1"
+  - title: "LangChain v1.0 GA Blog"
+    url: "https://www.langchain.com/blog/langchain-langgraph-1dot0"
+
+last_verified: "2026-08-22"
+confidence: high

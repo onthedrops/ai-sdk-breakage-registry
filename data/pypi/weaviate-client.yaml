@@ -1,0 +1,261 @@
+package: weaviate-client
+ecosystem: pypi
+from_version_range: "<4.0.0"
+to_version_range: ">=4.0.0"
+severity: critical
+category: api_break
+summary: "Weaviate Python client v4 is a complete API rewrite. The v3 weaviate.Client class is removed, replaced by connection helpers and WeaviateClient. Schema/class API replaced by collections API. GraphQL query builder replaced by collection.query methods. All responses now return typed objects instead of raw dicts."
+
+changes:
+  - symbol_before: "weaviate.Client(url=...)"
+    symbol_after: "weaviate.connect_to_local() or weaviate.WeaviateClient(...)"
+    change_type: renamed_class
+    before: |
+      import weaviate
+      client = weaviate.Client(url="http://localhost:8080")
+    after: |
+      import weaviate
+      client = weaviate.connect_to_local()
+      # or: client = weaviate.WeaviateClient(connection_params=...); client.connect()
+    detection:
+      regex:
+        - "weaviate\\.Client\\("
+    migration_note: "The v3 weaviate.Client class is removed. v4 replaces it with connection-helper functions (connect_to_local, connect_to_weaviate_cloud, connect_to_embedded) and the new WeaviateClient class."
+
+  - symbol_before: "# no explicit close needed"
+    symbol_after: "client.close() or context manager"
+    change_type: behavior_changed
+    before: |
+      client = weaviate.Client(url="http://localhost:8080")
+      # ... use client ...
+      # (no close needed)
+    after: |
+      client = weaviate.connect_to_local()
+      try:
+          # ... use client ...
+          pass
+      finally:
+          client.close()
+      # or: with weaviate.connect_to_local() as client: ...
+    detection:
+      regex:
+        - "weaviate\\.Client\\("
+    migration_note: "v4 client connections must be explicitly closed with client.close() or managed via a context manager. Required because v4 maintains a persistent gRPC connection."
+
+  - symbol_before: "client.schema.create_class({...})"
+    symbol_after: "client.collections.create(name, properties=[Property(...)])"
+    change_type: api_removed
+    before: |
+      class_obj = {
+          "class": "Article",
+          "properties": [
+              {"name": "title", "dataType": ["text"]},
+          ],
+      }
+      client.schema.create_class(class_obj)
+    after: |
+      from weaviate.classes.config import Property, DataType
+      client.collections.create(
+          "Article",
+          properties=[Property(name="title", data_type=DataType.TEXT)],
+      )
+    detection:
+      regex:
+        - "client\\.schema\\.create_class"
+        - "\\.schema\\.create_class"
+    migration_note: "v3's client.schema.create_class() (dict-based schema API) replaced by client.collections.create() with typed Property and DataType classes. A 'Class' is now a 'Collection'."
+
+  - symbol_before: "client.data_object.create({...}, 'ClassName')"
+    symbol_after: "collection.data.insert(properties={...})"
+    change_type: api_removed
+    before: |
+      client.data_object.create({"question": "..."}, "JeopardyQuestion")
+    after: |
+      questions = client.collections.use("JeopardyQuestion")
+      new_uuid = questions.data.insert(properties={"question": "..."})
+    detection:
+      regex:
+        - "client\\.data_object\\.create"
+        - "\\.data_object\\.create"
+    migration_note: "v3 client.data_object.create() removed. v4 requires obtaining the collection first via client.collections.use(name), then calling collection.data.insert()."
+
+  - symbol_before: "client.query.get(...).with_near_text(...).do()"
+    symbol_after: "collection.query.near_text(query=..., limit=...)"
+    change_type: api_removed
+    before: |
+      result = (
+          client.query.get("JeopardyQuestion", ["question"])
+          .with_near_text({"concepts": ["animal"]})
+          .with_limit(2)
+          .do()
+      )
+    after: |
+      questions = client.collections.use("JeopardyQuestion")
+      response = questions.query.near_text(query="animal", limit=2)
+      for o in response.objects:
+          print(o.properties)
+    detection:
+      regex:
+        - "client\\.query\\.get\\("
+        - "\\.query\\.get\\("
+        - "\\.with_near_text\\("
+        - "\\.with_limit\\("
+        - "\\.do\\(\\)"
+    migration_note: "v3's GraphQL builder pattern removed. v4 exposes query methods (near_text, hybrid, bm25, fetch_objects) directly on collection.query, returning typed objects via response.objects."
+
+  - symbol_before: "result['data']['Get']['Article'][0]['title']"
+    symbol_after: "o.properties['title']"
+    change_type: return_type_changed
+    before: |
+      result = client.query.get("Article", ["title"]).do()
+      title = result["data"]["Get"]["Article"][0]["title"]
+    after: |
+      response = questions.query.bm25(query="animal", limit=2)
+      for o in response.objects:
+          print(o.properties)
+    detection:
+      regex:
+        - "\\[\"data\"\\]\\[\"Get\"\\]"
+    migration_note: "v4 parses responses into typed custom-class instances rather than returning raw dicts. Each object exposes .properties, .uuid, .references, .vector, and .metadata attributes."
+
+  - symbol_before: "with client.batch as batch: batch.add_data_object(...)"
+    symbol_after: "with client.batch.dynamic() as batch: batch.add_object(...)"
+    change_type: removed_method
+    before: |
+      with client.batch as batch:
+          batch.add_data_object({"title": "..."}, "Article")
+    after: |
+      with client.batch.dynamic() as batch:
+          batch.add_object(properties={"title": "..."}, collection="Article")
+    detection:
+      regex:
+        - "with client\\.batch as batch"
+        - "batch\\.add_data_object"
+    migration_note: "v4 removed the implicit 'with client.batch as batch' form. Must use explicit algorithm context managers: dynamic() (recommended), fixed_size(), or rate_limit()."
+
+  - symbol_before: "Filter(path='...')"
+    symbol_after: "Filter.by_property(name='...')"
+    change_type: method_renamed
+    before: |
+      from weaviate import Filter
+      Filter(path="round")
+      FilterMetadata.ByXX
+    after: |
+      from weaviate.classes.query import Filter
+      Filter.by_property(name="round")
+      Filter.by_id()
+      Filter.by_creation_time()
+      Filter.by_update_time()
+    detection:
+      regex:
+        - "Filter\\(path="
+        - "FilterMetadata"
+    migration_note: "Filter API rewritten. Filter(path=...) replaced by explicit builders (by_property, by_ref, by_id). FilterMetadata.ByXX replaced by Filter.by_id(), Filter.by_creation_time(), Filter.by_update_time()."
+
+  - symbol_before: "from_object_uuid=..., to_object_uuid=..."
+    symbol_after: "from_uuid=..., to=..."
+    change_type: parameter_renamed
+    before: |
+      client.batch.add_reference(
+          from_object_uuid=src_uuid,
+          from_object_collection="WikiArticle",
+          from_property_name="linkedArticle",
+          to_object_uuid=tgt_uuid,
+      )
+    after: |
+      batch.add_reference(
+          from_uuid=src_uuid,
+          from_collection="WikiArticle",
+          from_property="linkedArticle",
+          to=tgt_uuid,
+      )
+    detection:
+      regex:
+        - "from_object_uuid"
+        - "from_object_collection"
+        - "from_property_name"
+        - "to_object_uuid"
+    migration_note: "Batch reference parameters renamed: from_object_uuid to from_uuid, from_object_collection to from_collection, from_property_name to from_property, to_object_uuid to to (now accepts single UUID or list)."
+
+  - symbol_before: "vectorizer_config=..., vectorize_class_name=..."
+    symbol_after: "vector_config=..., vectorize_collection_name=..."
+    change_type: parameter_renamed
+    before: |
+      vectorizer_config=...
+      vectorize_class_name=True
+      vector_index_type="hnsw"
+      quantitizer=...
+    after: |
+      vector_config=...
+      vectorize_collection_name=True
+      # vector_index_type removed — use Configure.VectorIndex.hnsw(...)
+      quantizer=...
+    detection:
+      regex:
+        - "vectorizer_config"
+        - "vectorize_class_name"
+        - "vector_index_type"
+        - "quantitizer"
+    migration_note: "Parameter renames: vectorizer_config to vector_config, vectorize_class_name to vectorize_collection_name, vector_index_type removed (use Configure.VectorIndex.hnsw()), misspelled quantitizer corrected to quantizer."
+
+  - symbol_before: "collection.data.reference_add(ref=...)"
+    symbol_after: "collection.data.reference_add(to=...)"
+    change_type: parameter_renamed
+    before: |
+      collection.data.reference_add(ref=target_uuid, ...)
+      FromReference(...)
+    after: |
+      collection.data.reference_add(to=target_uuid, ...)
+      QueryReference(...)
+    detection:
+      regex:
+        - "reference_add\\(.*ref="
+        - "reference_delete\\(.*ref="
+        - "reference_replace\\(.*ref="
+        - "FromReference"
+    migration_note: "The ref keyword for reference operations renamed to to. DataReferenceOneToMany merged into DataReference. FromReference renamed to QueryReference."
+
+  - symbol_before: "obj.metadata.uuid"
+    symbol_after: "obj.uuid (top-level)"
+    change_type: parameter_renamed
+    before: |
+      obj.metadata.uuid
+      obj.metadata.creation_time_unix
+      obj.metadata.last_update_time_unix
+    after: |
+      obj.uuid
+      obj.metadata.creation_time  # datetime
+      obj.metadata.last_update_time  # datetime
+    detection:
+      regex:
+        - "\\.metadata\\.uuid"
+        - "creation_time_unix"
+        - "last_update_time_unix"
+    migration_note: "metadata.uuid moved to top-level object.uuid. creation_time_unix renamed to metadata.creation_time (now returns datetime). last_update_time_unix renamed to metadata.last_update_time."
+
+  - symbol_before: "gRPC port 50051 not needed"
+    symbol_after: "gRPC port 50051 required"
+    change_type: platform_requirement_added
+    before: |
+      # v3: only HTTP port 8080 needed
+      client = weaviate.Client(url="http://localhost:8080")
+    after: |
+      # v4: requires gRPC port 50051 in addition to HTTP port 8080
+      client = weaviate.connect_to_local()
+    detection:
+      regex:
+        - "weaviate\\.Client\\("
+    migration_note: "v4 uses gRPC by default (port 50051) for query and batch operations. The gRPC port must be open and reachable. Requires Weaviate server >= 1.23.7."
+
+sources:
+  - title: "Weaviate Python Client Docs"
+    url: "https://weaviate.io/developers/weaviate/client-libraries/python"
+  - title: "Weaviate v4 GA Release Blog"
+    url: "https://weaviate.io/blog/py-client-v4-release"
+  - title: "Weaviate v3 Client Deprecation Blog"
+    url: "https://weaviate.io/blog/python-v3-client-deprecation"
+  - title: "Weaviate Python Client Changelog"
+    url: "https://weaviate-python-client.readthedocs.io/en/latest/changelog.html"
+
+last_verified: "2026-08-22"
+confidence: high

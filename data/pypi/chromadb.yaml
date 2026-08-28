@@ -1,0 +1,287 @@
+package: chromadb
+ecosystem: pypi
+from_version_range: "<0.4.0"
+to_version_range: ">=1.0.0"
+severity: high
+category: api_break
+summary: "ChromaDB Python SDK breaking changes from 0.4.0 through 1.0.0, covering client constructor overhaul, removed persist()/reset() defaults, generic EmbeddingFunction signature, auth system rewrite, result ordering/type changes, filter semantics, and the 1.0.0 Rust rewrite."
+
+changes:
+  - version: "0.4.0"
+    symbol_before: "chromadb.Client(Settings(chroma_db_impl=\"duckdb+parquet\", persist_directory=...))"
+    symbol_after: "chromadb.PersistentClient(path=...)"
+    change_type: api_removed
+    before: |
+      client = chromadb.Client(Settings(chroma_db_impl="duckdb+parquet", persist_directory="/path/to/data"))
+    after: |
+      client = chromadb.PersistentClient(path="/path/to/data")
+    detection:
+      regex:
+        - "chroma_db_impl"
+        - "Settings\\(chroma_db_impl"
+    migration_note: "The old client construction pattern using Settings(chroma_db_impl=...) was removed in 0.4.0, which dropped duckdb/clickhouse in favor of sqlite for metadata storage. Existing data must be migrated via `pip install chroma-migrate && chroma-migrate`. The new dedicated client constructors (PersistentClient, EphemeralClient, HttpClient) replace the generic Client(Settings(...)) for storage backends."
+
+  - version: "0.4.0"
+    symbol_before: "chromadb.Client()  # in-memory ephemeral client"
+    symbol_after: "chromadb.EphemeralClient()"
+    change_type: behavior_changed
+    before: |
+      client = chromadb.Client()  # in-memory ephemeral client
+    after: |
+      client = chromadb.EphemeralClient()
+    detection:
+      regex:
+        - "chromadb\\.Client\\(\\)"
+    migration_note: "The bare chromadb.Client() no longer creates the in-memory ephemeral client in the same way. The recommended replacement is chromadb.EphemeralClient(). The underlying .Client() remains accessible but the previous default behavior changed."
+
+  - version: "0.4.0"
+    symbol_before: "chromadb.Client(Settings(chroma_api_impl=\"rest\", chroma_server_host=..., chroma_server_http_port=...))"
+    symbol_after: "chromadb.HttpClient(host=..., port=...)"
+    change_type: api_removed
+    before: |
+      client = chromadb.Client(Settings(chroma_api_impl="rest", chroma_server_host="localhost", chroma_server_http_port="8000"))
+    after: |
+      client = chromadb.HttpClient(host="localhost", port="8000")
+    detection:
+      regex:
+        - "chroma_api_impl"
+        - "chroma_server_http_port"
+    migration_note: "The HTTP/REST client construction via Settings(chroma_api_impl=\"rest\", ...) was replaced by the dedicated HttpClient(host=..., port=...) constructor."
+
+  - version: "0.4.0"
+    symbol_before: "client.persist()  # or collection.persist()"
+    symbol_after: "# (removed — no replacement needed)"
+    change_type: removed_method
+    before: |
+      client.persist()  # or collection.persist()
+    after: |
+      # (removed — no replacement needed)
+    detection:
+      regex:
+        - "\\.persist\\(\\)"
+    migration_note: ".persist() existed in old versions because writes were only flushed when forced. In 0.4.0, Chroma saves all writes to disk instantly, so .persist() is no longer needed and was removed. Calling it now raises AttributeError."
+
+  - version: "0.4.0"
+    symbol_before: "client.reset()  # enabled by default"
+    symbol_after: "chromadb.PersistentClient(path=..., settings=Settings(allow_reset=True))"
+    change_type: default_behavior_changed
+    before: |
+      client.reset()  # enabled by default
+    after: |
+      client = chromadb.PersistentClient(path="./data", settings=Settings(allow_reset=True))  # reset disabled unless explicitly enabled
+    detection:
+      regex:
+        - "\\.reset\\(\\)"
+    migration_note: ".reset() (which wipes the entire database) used to be enabled by default. In 0.4.0 it is disabled by default and must be explicitly enabled by passing allow_reset=True to a Settings object. Existing code that calls client.reset() without the setting will now fail."
+
+  - version: "0.4.16"
+    symbol_before: "class EmbeddingFunction(Protocol): def __call__(self, texts: Documents) -> Embeddings"
+    symbol_after: "class EmbeddingFunction(Protocol[D]): def __call__(self, input: D) -> Embeddings"
+    change_type: parameter_renamed
+    before: |
+      class EmbeddingFunction(Protocol):
+          def __call__(self, texts: Documents) -> Embeddings:
+              ...
+    after: |
+      Embeddable = Union[Documents, Images]
+      D = TypeVar("D", bound=Embeddable, contravariant=True)
+
+      class EmbeddingFunction(Protocol[D]):
+          def __call__(self, input: D) -> Embeddings:
+              ...
+    detection:
+      regex:
+        - "def __call__\\(self, texts:"
+        - "texts: Documents"
+    migration_note: "EmbeddingFunction became generic (takes type parameter D) to support multi-modal embeddings. The __call__ argument was renamed from `texts` to `input`, and the `texts` argument was removed. Custom EmbeddingFunction implementations must rename the parameter and update their signature. Users of built-in embedding functions are unaffected."
+
+  - version: "0.5.0"
+    symbol_before: "CHROMA_SERVER_AUTH_PROVIDER=\"chromadb.auth.token.TokenAuthServerProvider\""
+    symbol_after: "CHROMA_SERVER_AUTHN_PROVIDER=\"chromadb.auth.token_authn.TokenAuthenticationServerProvider\""
+    change_type: behavior_changed
+    before: |
+      CHROMA_SERVER_AUTH_PROVIDER="chromadb.auth.token.TokenAuthServerProvider"
+      CHROMA_SERVER_AUTH_CREDENTIALS_PROVIDER="chromadb.auth.token.TokenConfigServerAuthCredentialsProvider"
+      CHROMA_SERVER_AUTH_CREDENTIALS="test-token"
+      CHROMA_CLIENT_AUTH_PROVIDER="chromadb.auth.token.TokenAuthClientProvider"
+      CHROMA_CLIENT_AUTH_CREDENTIALS="test-token"
+    after: |
+      CHROMA_SERVER_AUTHN_PROVIDER="chromadb.auth.token_authn.TokenAuthenticationServerProvider"
+      CHROMA_SERVER_AUTHN_CREDENTIALS="test-token"
+      CHROMA_CLIENT_AUTH_PROVIDER="chromadb.auth.token_authn.TokenAuthClientProvider"
+      CHROMA_CLIENT_AUTH_CREDENTIALS="test-token"
+    detection:
+      regex:
+        - "CHROMA_SERVER_AUTH_PROVIDER"
+        - "CHROMA_SERVER_AUTH_CREDENTIALS_PROVIDER"
+        - "chromadb\\.auth\\.token\\."
+    migration_note: "The auth system was overhauled. Many config settings were renamed or deleted: chroma_server_auth_provider -> chroma_server_authn_provider (renamed); chroma_client_auth_credentials_provider, chroma_client_auth_protocol_adapter, chroma_client_auth_credentials_file (deleted — folded into chroma_client_auth_provider / chroma_client_auth_credentials); chroma_server_auth_credentials -> chroma_server_authn_credentials (renamed); chroma_server_auth_token_transport_header / chroma_client_auth_token_transport_header -> chroma_auth_token_transport_header (renamed/merged). Custom auth/authorization provider implementations must be updated to the new ClientAuthProvider / ServerAuthenticationProvider / ServerAuthorizationProvider classes."
+
+  - version: "0.5.1"
+    symbol_before: "size = client.max_batch_size  # property access"
+    symbol_after: "size = client.get_max_batch_size()  # method call"
+    change_type: method_renamed
+    before: |
+      size = client.max_batch_size  # property access
+    after: |
+      size = client.get_max_batch_size()  # method call (may block / make HTTP request)
+    detection:
+      regex:
+        - "\\.max_batch_size"
+    migration_note: "The Python client's max_batch_size property was removed and replaced by the get_max_batch_size() method. The change clarifies that this may be a blocking operation (the first invocation makes an HTTP request). Code reading the property attribute will now raise AttributeError."
+
+  - version: "0.5.11"
+    symbol_before: "collection.get(limit=2, offset=2)[\"ids\"]  # ordered by user-provided IDs"
+    symbol_after: "collection.get(limit=2, offset=2)[\"ids\"]  # ordered by internal IDs"
+    change_type: behavior_changed
+    before: |
+      results = collection.get(limit=2, offset=2)["ids"]
+      # returned ids ordered by user-provided IDs, e.g. ["2", "3"]
+    after: |
+      results = collection.get(limit=2, offset=2)["ids"]
+      # now returns ids ordered by internal IDs, e.g. ["1", "0"]
+    detection:
+      regex:
+        - "offset="
+        - "collection\\.get\\(.*offset"
+    migration_note: "Results returned by collection.get() are now ordered by internal IDs instead of user-provided IDs. Because limit/offset depend on result ordering, pagination behavior changed: the same limit/offset values now return different records. The previous ordering was never explicitly documented."
+
+  - version: "0.5.11"
+    symbol_before: "client.get_or_create_collection(name=..., metadata=...)  # metadata OVERWRITTEN"
+    symbol_after: "client.get_or_create_collection(name=..., metadata=...)  # metadata IGNORED"
+    change_type: behavior_changed
+    before: |
+      collection = client.get_or_create_collection(name="my_coll", metadata={"version": 2})
+      # if collection existed, its metadata was OVERWRITTEN with the new values
+    after: |
+      collection = client.get_or_create_collection(name="my_coll", metadata={"version": 2})
+      # if collection exists, the existing collection is returned; metadata (and all other extra args) are IGNORED
+    detection:
+      regex:
+        - "get_or_create_collection\\(.*metadata="
+    migration_note: "get_or_create_collection behavior changed when a collection already exists and metadata is supplied. Previously the existing collection's metadata was overwritten; now the existing collection is returned as-is and all additional arguments (including metadata) are silently ignored. Code relying on metadata being updated via get_or_create must now use modify() instead."
+
+  - version: "0.5.11"
+    symbol_before: "result[\"embeddings\"]  # Python list of lists"
+    symbol_after: "result[\"embeddings\"]  # 2D NumPy array (np.ndarray)"
+    change_type: return_type_changed
+    before: |
+      result = collection.get()
+      # result["embeddings"] was a Python list of lists, e.g. [[0.1, 0.2, ...], ...]
+    after: |
+      result = collection.get()
+      # result["embeddings"] is now a 2-dimensional NumPy array (np.ndarray of shape (n, dim))
+    detection:
+      regex:
+        - "\\[\"embeddings\"\\]"
+        - "result\\[\"embeddings\"\\]"
+    migration_note: "Embeddings returned by collection.get(), collection.query(), and collection.peek() are now 2-dimensional NumPy arrays instead of Python lists. If a request returns multiple embeddings the result is a Python list whose items are each 2D NumPy arrays. Code that assumes list-of-lists (e.g. len(result['embeddings'][0]) for dimension, or JSON-serializing directly) may break. Adding embeddings still accepts either Python lists or NumPy arrays."
+
+  - version: "0.5.12"
+    symbol_before: "collection.get(where={\"status\": {\"$ne\": \"done\"}})  # $ne matches only records WITH the key"
+    symbol_after: "collection.get(where={\"status\": {\"$ne\": \"done\"}})  # $ne also matches records WITHOUT the key"
+    change_type: behavior_changed
+    before: |
+      collection.get(where={"status": {"$ne": "done"}})
+      # $ne matched ONLY records that HAD the "status" key (with value != "done")
+    after: |
+      collection.get(where={"status": {"$ne": "done"}})
+      # $ne now ALSO matches records that do NOT have the "status" key at all
+    detection:
+      regex:
+        - "\\$ne"
+    migration_note: "The $ne (not equal) and $nin (not in) operators in where clauses changed to match the complement set — the exact opposite of $eq and $in respectively. Previously they only matched records that possessed the specified key; now they also match records lacking the key entirely. The same change applies to $not_contains in where_document clauses (now matches records without a document field). Existing filters will return MORE results than before."
+
+  - version: "0.5.17"
+    symbol_before: "collection.get(ids=[...], where={})  # empty where dict"
+    symbol_after: "collection.get(ids=[...])  # omit empty where/where_document"
+    change_type: parameter_removed
+    before: |
+      collection.get(ids=["id1", "id2", "id3"], where={})  # empty where dict
+    after: |
+      collection.get(ids=["id1", "id2", "id3"])  # omit empty where/where_document
+    detection:
+      regex:
+        - "where=\\{\\}"
+    migration_note: "Chroma no longer supports sending empty lists or dictionaries for metadata filtering (where), ID filtering, and similar operations. Passing where={} or where_document={} now raises an error. The empty filter must simply be omitted."
+
+  - version: "0.6.0"
+    symbol_before: "collections = client.list_collections()  # list of Collection objects; c.name worked"
+    symbol_after: "collection_names = client.list_collections()  # list of name strings"
+    change_type: return_type_changed
+    before: |
+      collections = client.list_collections()  # returned list of Collection objects
+      for c in collections:
+          c.name  # attribute access worked
+    after: |
+      collection_names = client.list_collections()  # returns list of collection name strings
+      ef = OpenAIEmbeddingFunction(...)
+      collections = [client.get_collection(name=n, embedding_function=ef) for n in collection_names]
+    detection:
+      regex:
+        - "list_collections\\(\\)"
+        - "\\.name"
+    migration_note: "list_collections() changed from returning a list of Collection objects to returning only collection names (strings). This was done because returning Collection objects could error when collections were created with a custom (non-default) embedding function. Code that accessed .name or other attributes on the returned items will break. NOTE: this was reverted in v1.0.0 (list_collections again returns Collection objects)."
+
+  - version: "0.6.0"
+    symbol_before: "# chromadb 0.5.x supported Python 3.8+"
+    symbol_after: "# chromadb 0.6.0+ requires Python 3.9 or higher; Python 3.8 dropped"
+    change_type: platform_requirement_added
+    before: |
+      # chromadb 0.5.x supported Python 3.8+
+    after: |
+      # chromadb 0.6.0+ requires Python 3.9 or higher; Python 3.8 dropped
+    detection:
+      regex:
+        - "Python 3\\.8"
+    migration_note: "Support for Python 3.8 was dropped in 0.6.0. Environments still on Python 3.8 cannot install chromadb >= 0.6.0."
+
+  - version: "1.0.0"
+    symbol_before: "# Built-in auth providers (chromadb.auth.token_authn.TokenAuthClientProvider, BasicAuthClientProvider) shipped with SDK"
+    symbol_after: "# No built-in auth; use HttpClient headers= or custom provider"
+    change_type: api_removed
+    before: |
+      # Built-in authentication providers (e.g. chromadb.auth.token_authn.TokenAuthClientProvider, BasicAuthClientProvider) shipped with the SDK
+    after: |
+      # Chroma no longer provides built-in authentication implementations; users must implement their own auth provider or use the HttpClient headers= parameter
+    detection:
+      regex:
+        - "TokenAuthClientProvider"
+        - "BasicAuthClientProvider"
+        - "chromadb\\.auth\\.token_authn\\."
+    migration_note: "Chroma 1.0.0 no longer provides built-in authentication implementations. Users relying on the bundled token/basic auth providers must supply auth via HttpClient headers (e.g. headers={\"Authorization\": \"Bearer ...\"}) or implement a custom provider. This is a rewrite of much of Chroma in Rust."
+
+  - version: "1.0.0"
+    symbol_before: "# list_collections() returned collection name strings (in 0.6.x)"
+    symbol_after: "collections = client.list_collections()  # now returns Collection objects again"
+    change_type: behavior_changed
+    before: |
+      # list_collections() returned collection name strings (in 0.6.x)
+    after: |
+      collections = client.list_collections()  # now returns Collection objects again
+    detection:
+      regex:
+        - "list_collections\\(\\)"
+        - "name strings"
+    migration_note: "In 1.0.0, list_collections reverts to returning Collection objects (undoing the 0.6.0 change that returned name strings). Code written for 0.6.x that treats the return value as a list of strings will need to be updated to handle Collection objects."
+
+  - version: "1.0.0"
+    symbol_before: "docker run -v ./chroma:/chroma/chroma chroma-core/chroma  # data at /chroma/chroma"
+    symbol_after: "docker run -v ./chroma:/data chroma-core/chroma  # data now at /data"
+    change_type: behavior_changed
+    before: |
+      docker run -p 8000:8000 -v ./chroma:/chroma/chroma chroma-core/chroma  # data at /chroma/chroma
+    after: |
+      docker run -p 8000:8000 -v ./chroma:/data chroma-core/chroma  # data now at /data
+    detection:
+      regex:
+        - "/chroma/chroma"
+        - "chroma-core/chroma"
+    migration_note: "The default data location in the Docker container changed from /chroma/chroma to /data. Existing volume mounts must be updated to the new path or data will not be found. Additionally, server settings previously passed via environment variables (CHROMA_SERVER_CORS_ALLOW_ORIGINS, CHROMA_OTEL_COLLECTION_ENDPOINT) are now provided via a YAML config file: `chroma run --config ./config.yaml`."
+
+sources:
+  - title: "Chroma Migration Guide"
+    url: "https://docs.trychroma.com/docs/overview/migration"
+
+last_verified: "2026-08-22"
+confidence: high

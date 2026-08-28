@@ -1,0 +1,157 @@
+package: transformers
+ecosystem: pypi
+from_version_range: ">=4.0.0,<5.0.0"
+to_version_range: ">=5.0.0"
+severity: critical
+category: api_break
+summary: "HuggingFace Transformers v5 removes TensorFlow and JAX/Flax backends entirely (PyTorch only), removes deprecated FeatureExtractor in favor of ImageProcessor, replaces use_auth_token with token, and requires quantization_config instead of load_in_4bit/load_in_8bit."
+
+changes:
+  - symbol_before: "from transformers import TFAutoModel"
+    symbol_after: "from transformers import AutoModel"
+    change_type: removed_class
+    before: |
+      from transformers import TFAutoModel
+      model = TFAutoModel.from_pretrained("bert-base-uncased")
+
+      from transformers import TFBertModel
+      model = TFBertModel.from_pretrained("bert-base-uncased")
+
+      from transformers import FlaxAutoModel
+      model = FlaxAutoModel.from_pretrained("bert-base-uncased")
+    after: |
+      from transformers import AutoModel
+      model = AutoModel.from_pretrained("bert-base-uncased")
+
+      from transformers import BertModel
+      model = BertModel.from_pretrained("bert-base-uncased")
+    detection:
+      regex:
+        - "TFAutoModel"
+        - "TFBertModel"
+        - "FlaxAutoModel"
+        - "FlaxBertModel"
+      import_patterns:
+        - "from transformers import TF"
+        - "from transformers import Flax"
+    migration_note: "TensorFlow and JAX/Flax model classes removed in v5. PyTorch is the sole backend. Migrate all TF/Flax code to PyTorch equivalents."
+
+  - symbol_before: "model = AutoModel.from_pretrained('model', use_auth_token='hf_...')"
+    symbol_after: "model = AutoModel.from_pretrained('model', token='hf_...')"
+    change_type: parameter_renamed
+    before: |
+      model = AutoModel.from_pretrained("model_name", use_auth_token="hf_...")
+    after: |
+      model = AutoModel.from_pretrained("model_name", token="hf_...")
+    detection:
+      regex:
+        - "use_auth_token"
+    migration_note: "use_auth_token parameter removed. Use token= instead."
+
+  - symbol_before: "model = AutoModelForCausalLM.from_pretrained('model', load_in_4bit=True)"
+    symbol_after: "model = AutoModelForCausalLM.from_pretrained('model', quantization_config=BitsAndBytesConfig(load_in_4bit=True))"
+    change_type: parameter_removed
+    before: |
+      model = AutoModelForCausalLM.from_pretrained(
+          "meta-llama/Llama-3.2-3B",
+          load_in_4bit=True
+      )
+    after: |
+      from transformers import BitsAndBytesConfig
+      quantization_config = BitsAndBytesConfig(load_in_4bit=True)
+      model = AutoModelForCausalLM.from_pretrained(
+          "meta-llama/Llama-3.2-3B",
+          quantization_config=quantization_config
+      )
+    detection:
+      regex:
+        - "load_in_4bit"
+        - "load_in_8bit"
+    migration_note: "Direct load_in_4bit/load_in_8bit parameters removed. Use BitsAndBytesConfig with quantization_config."
+
+  - symbol_before: "from transformers import AutoFeatureExtractor"
+    symbol_after: "from transformers import AutoImageProcessor"
+    change_type: renamed_class
+    before: |
+      from transformers import AutoFeatureExtractor
+      extractor = AutoFeatureExtractor.from_pretrained("model")
+    after: |
+      from transformers import AutoImageProcessor
+      processor = AutoImageProcessor.from_pretrained("model")
+    detection:
+      regex:
+        - "AutoFeatureExtractor"
+        - "FeatureExtractor"
+      import_patterns:
+        - "from transformers import.*FeatureExtractor"
+    migration_note: "FeatureExtractor classes deprecated and removed. Use AutoImageProcessor instead."
+
+  - symbol_before: "AutoModelWithLMHead"
+    symbol_after: "AutoModelForCausalLM / AutoModelForMaskedLM / AutoModelForSeq2SeqLM"
+    change_type: removed_class
+    before: |
+      from transformers import AutoModelWithLMHead
+      model = AutoModelWithLMHead.from_pretrained("gpt2")
+    after: |
+      # For causal LM (GPT, Llama, etc.):
+      from transformers import AutoModelForCausalLM
+      model = AutoModelForCausalLM.from_pretrained("gpt2")
+
+      # For masked LM (BERT, RoBERTa, etc.):
+      from transformers import AutoModelForMaskedLM
+
+      # For encoder-decoder (T5, BART, etc.):
+      from transformers import AutoModelForSeq2SeqLM
+    detection:
+      regex:
+        - "AutoModelWithLMHead"
+    migration_note: "AutoModelWithLMHead removed. Use AutoModelForCausalLM, AutoModelForMaskedLM, or AutoModelForSeq2SeqLM depending on model type."
+
+  - symbol_before: "trainer = Trainer(model=model, tokenizer=tokenizer)"
+    symbol_after: "trainer = Trainer(model=model, processor=processor)"
+    change_type: parameter_renamed
+    before: |
+      trainer = Trainer(
+          model=model,
+          tokenizer=tokenizer,
+          args=training_args,
+          train_dataset=dataset
+      )
+    after: |
+      trainer = Trainer(
+          model=model,
+          processor=processor,
+          args=training_args,
+          train_dataset=dataset
+      )
+    detection:
+      regex:
+        - "tokenizer=tokenizer"
+    migration_note: "Trainer's tokenizer parameter renamed to processor. Pass your tokenizer/processor as processor=."
+
+  - symbol_before: "TRANSFORMERS_CACHE"
+    symbol_after: "HF_HOME"
+    change_type: parameter_renamed
+    before: |
+      # Environment variable
+      TRANSFORMERS_CACHE=/path/to/cache
+    after: |
+      # Environment variable
+      HF_HOME=/path/to/cache
+    detection:
+      regex:
+        - "TRANSFORMERS_CACHE"
+    migration_note: "TRANSFORMERS_CACHE environment variable replaced by HF_HOME."
+
+sources:
+  - title: "Transformers v5 Migration Guide (official)"
+    url: "https://github.com/huggingface/transformers/blob/main/MIGRATION_GUIDE_V5.md"
+  - title: "Transformers v5 Blog Post"
+    url: "https://huggingface.co/blog/transformers-v5"
+  - title: "Transformers v5 Welcome Issue"
+    url: "https://github.com/huggingface/transformers/issues/40822"
+  - title: "Transformers v5 on PyPI"
+    url: "https://pypi.org/project/transformers/"
+
+last_verified: "2026-08-15"
+confidence: high

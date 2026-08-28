@@ -1,0 +1,119 @@
+package: openai
+ecosystem: npm
+from_version_range: "<4.0.0"
+to_version_range: ">=4.0.0"
+severity: critical
+category: api_break
+summary: "OpenAI Node.js SDK v4 replaced module-level API calls with client-based APIs, matching the Python v1.0 rewrite."
+
+changes:
+  - symbol_before: "openai.ChatCompletion.create"
+    symbol_after: "openai.chat.completions.create"
+    change_type: renamed_method
+    before: |
+      const { Configuration, OpenAIApi } = require("openai");
+      const configuration = new Configuration({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      const openai = new OpenAIApi(configuration);
+      const response = await openai.createChatCompletion({
+        model: "gpt-4",
+        messages: [{ role: "user", content: "Hello" }],
+      });
+    after: |
+      import OpenAI from "openai";
+      const openai = new OpenAI();
+      const response = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [{ role: "user", content: "Hello" }],
+      });
+    detection:
+      regex:
+        - "createChatCompletion"
+        - "new OpenAIApi"
+        - "new Configuration"
+      import_patterns:
+        - "from 'openai'"
+        - 'require\\("openai"\\)'
+    migration_note: "Configuration and OpenAIApi classes removed. Use new OpenAI() client. Methods are now nested: openai.chat.completions.create() instead of openai.createChatCompletion()."
+
+  - symbol_before: "openai.createCompletion"
+    symbol_after: "openai.completions.create"
+    change_type: renamed_method
+    before: |
+      const response = await openai.createCompletion({
+        model: "text-davinci-003",
+        prompt: "Hello world",
+      });
+    after: |
+      const response = await openai.completions.create({
+        model: "gpt-3.5-turbo-instruct",
+        prompt: "Hello world",
+      });
+    detection:
+      regex:
+        - "createCompletion"
+    migration_note: "Use openai.completions.create(). Note: text-davinci-003 model was also deprecated."
+
+  - symbol_before: "openai.createEmbedding"
+    symbol_after: "openai.embeddings.create"
+    change_type: renamed_method
+    before: |
+      const response = await openai.createEmbedding({
+        model: "text-embedding-ada-002",
+        input: "Hello world",
+      });
+    after: |
+      const response = await openai.embeddings.create({
+        model: "text-embedding-ada-002",
+        input: "Hello world",
+      });
+    detection:
+      regex:
+        - "createEmbedding"
+    migration_note: "Use openai.embeddings.create()."
+
+  - symbol_before: "openai.createImage"
+    symbol_after: "openai.images.generate"
+    change_type: renamed_method
+    before: |
+      const response = await openai.createImage({
+        prompt: "A cat",
+        n: 1,
+        size: "1024x1024",
+      });
+    after: |
+      const response = await openai.images.generate({
+        prompt: "A cat",
+        n: 1,
+        size: "1024x1024",
+      });
+    detection:
+      regex:
+        - "createImage"
+    migration_note: "Use openai.images.generate(). Also: openai.images.edit() and openai.images.createVariation()."
+
+  - symbol_before: "response.data.choices[0].message.content"
+    symbol_after: "response.choices[0].message.content"
+    change_type: return_type_changed
+    before: |
+      // v3: response wrapped in .data
+      const content = response.data.choices[0].message.content;
+    after: |
+      // v4: response is direct
+      const content = response.choices[0].message.content;
+    detection:
+      regex:
+        - "response\\.data\\.choices"
+    migration_note: "Response objects no longer wrapped in .data. Access response.choices directly."
+
+sources:
+  - title: "OpenAI Node.js SDK v4 Migration Guide"
+    url: "https://github.com/openai/openai-node/discussions/217"
+  - title: "OpenAI API Changelog"
+    url: "https://developers.openai.com/api/docs/changelog"
+  - title: "Microsoft Learn: Migrate to OpenAI v1.x"
+    url: "https://learn.microsoft.com/en-us/azure/foundry-classic/openai/how-to/migration"
+
+last_verified: "2026-08-15"
+confidence: high

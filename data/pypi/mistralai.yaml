@@ -1,0 +1,270 @@
+package: mistralai
+ecosystem: pypi
+from_version_range: "<1.0.0"
+to_version_range: ">=1.0.0"
+severity: high
+category: api_break
+summary: "Mistral AI Python SDK reorganized its client surface across v0.x→v1.x (flat methods moved under namespaced accessors, ChatMessage replaced by role-specific message types, MistralClient/MistralAsyncClient consolidated into Mistral) and v1.x→v2.x (PEP 420 namespace-package restructure relocating mistralai.client.* submodules, 42 request/response types renamed, GCP/Azure providers folded into the main package). Call sites importing the old symbols or invoking the old flat methods must be updated."
+
+changes:
+  - symbol_before: "from mistralai import Mistral"
+    symbol_after: "from mistralai.client import Mistral"
+    change_type: import_path_changed
+    before: |
+      from mistralai import Mistral
+
+      client = Mistral(api_key="YOUR_API_KEY")
+    after: |
+      from mistralai.client import Mistral
+
+      client = Mistral(api_key="YOUR_API_KEY")
+    detection:
+      regex:
+        - 'from mistralai import Mistral\b'
+    migration_note: "In v2.x the SDK moved to a PEP 420 namespace package format. The main client class was relocated into the `client` submodule. Old code importing `from mistralai import Mistral` will fail with AttributeError/ModuleNotFoundError. V2 corresponds to mistralai>=2, V1 to mistralai<2."
+
+  - symbol_before: "from mistralai.models import ..."
+    symbol_after: "from mistralai.client.models import ..."
+    change_type: import_path_changed
+    before: |
+      from mistralai.models import ...
+      from mistralai.types import ...
+      from mistralai.utils import ...
+    after: |
+      from mistralai.client.models import ...
+      from mistralai.client.types import ...
+      from mistralai.client.utils import ...
+    detection:
+      regex:
+        - 'from mistralai\.(models|types|utils) import'
+    migration_note: "All mistralai.models, mistralai.types, and mistralai.utils submodules were relocated under mistralai.client.* as part of the v2.x namespace-package restructure. mistralai.extra (RunContext, MCPClientSTDIO, MCPClientSSE, response_format_from_pydantic_model, etc.) is unchanged."
+
+  - symbol_before: "from mistralai_gcp import MistralGoogleCloud"
+    symbol_after: "from mistralai.gcp.client import MistralGCP"
+    change_type: renamed_class
+    before: |
+      from mistralai_gcp import MistralGoogleCloud
+
+      client = MistralGoogleCloud()
+    after: |
+      from mistralai.gcp.client import MistralGCP
+
+      client = MistralGCP()
+    detection:
+      regex:
+        - 'from mistralai_gcp import'
+        - 'MistralGoogleCloud'
+    migration_note: "GCP support is no longer a separate top-level package (mistralai[gcp]). In v2.x it is a namespace sub-package of mistralai, and the class was renamed from MistralGoogleCloud to MistralGCP. Authentication is now handled automatically via google.auth.default(); region defaults to europe-west4."
+
+  - symbol_before: "MistralAzure(azure_endpoint=..., azure_api_key=...)"
+    symbol_after: "MistralAzure(server_url=..., api_key=...)"
+    change_type: parameter_renamed
+    before: |
+      from mistralai.azure.client import MistralAzure
+
+      client = MistralAzure(
+          azure_endpoint=os.environ["AZUREAI_ENDPOINT"],
+          azure_api_key=os.environ["AZUREAI_API_KEY"],
+      )
+    after: |
+      from mistralai.azure.client import MistralAzure
+
+      client = MistralAzure(
+          server_url=os.environ["AZUREAI_ENDPOINT"],
+          api_key=os.environ["AZUREAI_API_KEY"],
+      )
+    detection:
+      regex:
+        - 'azure_endpoint\s*='
+        - 'azure_api_key\s*='
+    migration_note: "Azure support moved from the separate mistralai-azure package to from mistralai.azure.client import MistralAzure. The constructor parameters were renamed: azure_endpoint= → server_url= and azure_api_key= → api_key= to align with the unified SDK surface."
+
+  - symbol_before: "client.chat(messages=[...], model=...)"
+    symbol_after: "client.chat.complete(messages=[...], model=...)"
+    change_type: method_renamed
+    before: |
+      response = client.chat(
+          messages=[...],
+          model="mistral-large-latest",
+      )
+    after: |
+      response = client.chat.complete(
+          messages=[...],
+          model="mistral-large-latest",
+      )
+    detection:
+      regex:
+        - 'client\.chat\('
+    migration_note: "v0.x→v1.x: the flat client.chat method was reorganized under a namespaced client.chat.complete accessor. The same restructuring applied to many other endpoints (see related entries)."
+
+  - symbol_before: "client.chat_stream(messages=[...], model=...)"
+    symbol_after: "client.chat.stream(messages=[...], model=...)"
+    change_type: method_renamed
+    before: |
+      stream = client.chat_stream(
+          messages=[...],
+          model="mistral-large-latest",
+      )
+      for chunk in stream:
+          print(chunk.choices[0].delta.content)
+    after: |
+      stream = client.chat.stream(
+          messages=[...],
+          model="mistral-large-latest",
+      )
+      for chunk in stream:
+          print(chunk.data.choices[0].delta.content)
+    detection:
+      regex:
+        - 'client\.chat_stream\('
+    migration_note: "v0.x→v1.x: client.chat_stream became client.chat.stream. The streaming chunk structure also changed — content is now accessed via chunk.data.choices[0].delta.content rather than chunk.choices[0].delta.content."
+
+  - symbol_before: "client.embeddings(...) / client.completions(...) / client.list_models(...) / client.files.create(...) / client.jobs.create(...)"
+    symbol_after: "client.embeddings.create(...) / client.fim.complete(...) / client.models.list(...) / client.files.upload(...) / client.fine_tuning.jobs.create(...)"
+    change_type: method_renamed
+    before: |
+      client.embeddings(...)
+      client.completions(...)
+      client.completions_stream(...)
+      client.list_models(...)
+      client.files.create(...)
+      client.jobs.create(...)
+      client.jobs.retrieve(...)
+    after: |
+      client.embeddings.create(...)
+      client.fim.complete(...)
+      client.fim.stream(...)
+      client.models.list(...)
+      client.files.upload(...)
+      client.fine_tuning.jobs.create(...)
+      client.fine_tuning.jobs.get(...)
+    detection:
+      regex:
+        - 'client\.completions_stream\('
+        - 'client\.completions\('
+        - 'client\.list_models\('
+        - 'client\.embeddings\('
+        - 'client\.files\.create\('
+        - 'client\.jobs\.create\('
+        - 'client\.jobs\.retrieve\('
+    migration_note: "v0.x→v1.x reorganized many flat methods into namespaced accessors. Notably client.files.create → client.files.upload, client.completions → client.fim.complete, client.completions_stream → client.fim.stream, client.list_models → client.models.list, and the fine-tuning client.jobs.* methods moved under client.fine_tuning.jobs.* (with retrieve renamed to get)."
+
+  - symbol_before: "from mistralai.models import ChatMessage"
+    symbol_after: "from mistralai.models import UserMessage"
+    change_type: removed_class
+    before: |
+      from mistralai.models import ChatMessage
+
+      msg = ChatMessage(role="user", content="Hello")
+    after: |
+      from mistralai.models import UserMessage
+
+      msg = UserMessage(content="Hello")
+    detection:
+      regex:
+        - 'from mistralai\.models import.*ChatMessage'
+        - 'ChatMessage\s*\('
+    migration_note: "v0.x→v1.x: the generic ChatMessage class was removed and replaced with role-specific message types (UserMessage, AssistantMessage, SystemMessage, ToolMessage, etc.). The role field is no longer set manually — it is implied by the message class."
+
+  - symbol_before: "MistralClient(...) / MistralAsyncClient(...)"
+    symbol_after: "Mistral(...)"
+    change_type: renamed_class
+    before: |
+      from mistralai import MistralClient, MistralAsyncClient
+
+      client = MistralClient(api_key="YOUR_API_KEY")
+      async_client = MistralAsyncClient(api_key="YOUR_API_KEY")
+    after: |
+      from mistralai import Mistral
+
+      client = Mistral(api_key="YOUR_API_KEY")
+      # async usage: await client.chat.complete_async(...)
+    detection:
+      regex:
+        - '(MistralClient|MistralAsyncClient)\s*\('
+        - 'from mistralai import.*(MistralClient|MistralAsyncClient)'
+    migration_note: "v0.x→v1.x: MistralClient and MistralAsyncClient were consolidated into a single unified Mistral client class (sync and async methods are exposed on the same class)."
+
+  - symbol_before: "from mistralai.models import AgentCreationRequest, BatchJobOut, UploadFileOut, Tools"
+    symbol_after: "from mistralai.client.models import CreateAgentRequest, BatchJob, UploadFileResponse, ConversationRequestTool"
+    change_type: renamed_class
+    before: |
+      from mistralai.models import AgentCreationRequest, BatchJobIn, BatchJobOut, UploadFileOut, ListFilesOut, DeleteFileOut, JobIn, JobsOut, Tools
+    after: |
+      from mistralai.client.models import CreateAgentRequest, CreateBatchJobRequest, BatchJob, UploadFileResponse, ListFilesResponse, DeleteFileResponse, CreateFineTuningJobRequest, ListFineTuningJobsResponse, ConversationRequestTool
+    detection:
+      regex:
+        - 'from mistralai\.models import.*(AgentCreationRequest|BatchJobOut|UploadFileOut|ListFilesOut|DeleteFileOut|JobsOut|JobIn|Tools)'
+    migration_note: "v1.x→v2.x: 42 request/response types were renamed to a consistent {Verb}{Entity}Request / {Verb}{Entity}Response / {Entity} naming convention (e.g. AgentCreationRequest→CreateAgentRequest, BatchJobOut→BatchJob, UploadFileOut→UploadFileResponse). The user-facing Tools type was renamed to ConversationRequestTool. Full mapping table in MIGRATION.md."
+
+  - symbol_before: "FunctionTool(function=..., type=None)"
+    symbol_after: "FunctionTool(function=..., type=\"function\")"
+    change_type: behavior_changed
+    before: |
+      from mistralai.models import FunctionTool
+
+      tool = FunctionTool(function=..., type=None)  # type was Optional[FunctionToolType]
+    after: |
+      from mistralai.models import FunctionTool
+
+      tool = FunctionTool(function=..., type="function")  # type is now Literal["function"]
+    detection:
+      regex:
+        - 'FunctionTool\(.*type\s*=\s*None'
+        - 'FunctionTool\(.*type\s*=\s*[A-Z]'
+    migration_note: "v1.x→v2.x: FunctionTool.type changed from Optional[FunctionToolType] to Literal[\"function\"]. Functionally equivalent if type is omitted, but explicit type-checks against the old optional type will break. v2.x enums also now accept unknown values and discriminated unions carry an Unknown variant for forward compatibility with API changes."
+
+  - symbol_before: "client.workflows.events.send_event(...) / client.events.send_events_batch(...)"
+    symbol_after: "(removed — use the workflows execution streaming surface)"
+    change_type: removed_method
+    before: |
+      client.workflows.events.send_event(...)
+      client.workflows.events.send_events_batch(...)
+      client.events.send_event(...)
+      client.events.send_events_batch(...)
+    after: |
+      # These methods were removed in v2.2.0; use the workflows execution streaming surface instead
+      # e.g. client.workflows.stream(...) / client.workflows.run(...)
+    detection:
+      regex:
+        - 'client\.events\.send_event'
+        - 'client\.workflows\.events\.send_event'
+        - '\.send_events_batch\('
+    migration_note: "v2.2.0 removed mistral.workflows.events.send_event, send_events_batch, mistral.events.send_event, and send_events_batch. Workflow event submission was consolidated; existing callers must migrate to the surviving workflows execution streaming API."
+
+  - symbol_before: "client.search_indexes.document_lookup(...) / client.search_indexes.get_index_detail(...)"
+    symbol_after: "client.search_indexes.register_deployment(...) / client.search_indexes.get_deployment_summaries(...)"
+    change_type: removed_method
+    before: |
+      client.search_indexes.document_lookup(...)
+      client.search_indexes.documents_fetch(...)
+      client.search_indexes.generate_index_summary(...)
+      client.search_indexes.get_index_detail(...)
+      client.search_indexes.get_index_schema_file(...)
+    after: |
+      # v2.9.0 collapsed 15 search_indexes operations down to 4; survivors renamed in v2.9.1
+      client.search_indexes.register_deployment(...)
+      client.search_indexes.get_deployment_summaries(...)
+    detection:
+      regex:
+        - 'client\.search_indexes\.(document_lookup|documents_fetch|generate_index_summary|generate_schema_summary|get_index_detail|get_index_schema_detail|get_index_schema_file|get_index_summaries|get_index_summary|get_schema_summary|set_index_summary|set_schema_summary)\('
+    migration_note: "v2.9.0 removed 12 of 15 search-index operations (document_lookup, documents_fetch, generate_index_summary, generate_schema_summary, get_index_detail, get_index_schema_detail, get_index_schema_file, get_index_summaries, get_index_summary, get_schema_summary, set_index_summary, set_schema_summary). v2.9.1 then renamed the four survivors into 'deployment' vocabulary. The index concept is being migrated, not simply deleted."
+
+sources:
+  - title: "Mistral client-python MIGRATION.md (v0→v1 and v1→v2)"
+    url: "https://raw.githubusercontent.com/mistralai/client-python/main/MIGRATION.md"
+  - title: "Mistral AI Official Migration Guides (V1→V2 + provider migration)"
+    url: "https://docs.mistral.ai/resources/migration-guides"
+  - title: "AI Change Watch: mistral-client-python v2.0.0 release analysis"
+    url: "https://aichangewatch.com/event/mistral-client-python-v2-0-0-gh_20260310171204_0066"
+  - title: "Changecast: Mistral Python v2.0.0 engineering briefing"
+    url: "https://changecast.ai/story/mistral-python-v200-20260310-171201-4fef9a/engineering"
+  - title: "AI Change Watch: Mistral v2.9.0 drops 12 search-index operations"
+    url: "https://aichangewatch.com/event/mistral-mistral-client-v2-9-0-drops-12-search-index-operations-and-con-cur_20260804_mistral_sdk_surface"
+  - title: "newreleases.io: mistralai/client-python v2.2.0rc3"
+    url: "https://newreleases.io/project/github/mistralai/client-python/release/v2.2.0rc3"
+  - title: "Checklist registry: mistralai (runtime errors observed)"
+    url: "https://checklist.day/registry/mistralai"
+
+last_verified: "2026-08-22"
+confidence: high

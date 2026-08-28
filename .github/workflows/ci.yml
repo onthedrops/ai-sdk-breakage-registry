@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml jsonschema pytest
+
+      - name: Validate all entries against schema
+        run: python tools/validate.py
+
+      - name: Build registry index
+        run: python tools/build_index.py
+
+      - name: Run tests
+        run: pytest tests/ -v
+
+      - name: Upload generated registry
+        uses: actions/upload-artifact@v4
+        with:
+          name: registry-json
+          path: generated/registry.json

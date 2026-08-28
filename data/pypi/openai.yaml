@@ -1,0 +1,170 @@
+package: openai
+ecosystem: pypi
+from_version_range: "<1.0.0"
+to_version_range: ">=1.0.0"
+severity: critical
+category: api_break
+summary: "OpenAI Python SDK v1.0 replaced all module-level API calls with client-based APIs. Every call site must be updated."
+
+changes:
+  - symbol_before: "openai.ChatCompletion.create"
+    symbol_after: "client.chat.completions.create"
+    change_type: renamed_method
+    before: |
+      import openai
+      openai.api_key = "sk-..."
+      response = openai.ChatCompletion.create(
+          model="gpt-4",
+          messages=[{"role": "user", "content": "Hello"}]
+      )
+    after: |
+      from openai import OpenAI
+      client = OpenAI(api_key="sk-...")
+      response = client.chat.completions.create(
+          model="gpt-4",
+          messages=[{"role": "user", "content": "Hello"}]
+      )
+    detection:
+      regex:
+        - "openai\\.ChatCompletion\\.create"
+        - "openai\\.ChatCompletion\\.acreate"
+      import_patterns:
+        - "import openai"
+    migration_note: "Instantiate an OpenAI() client and call client.chat.completions.create(). The api_key is passed to the client constructor, not set as a module-level variable."
+
+  - symbol_before: "openai.Completion.create"
+    symbol_after: "client.completions.create"
+    change_type: renamed_method
+    before: |
+      import openai
+      response = openai.Completion.create(
+          model="text-davinci-003",
+          prompt="Hello world"
+      )
+    after: |
+      from openai import OpenAI
+      client = OpenAI()
+      response = client.completions.create(
+          model="gpt-3.5-turbo-instruct",
+          prompt="Hello world"
+      )
+    detection:
+      regex:
+        - "openai\\.Completion\\.create"
+    migration_note: "Use client.completions.create(). Note: text-davinci-003 model was also deprecated."
+
+  - symbol_before: "openai.Embedding.create"
+    symbol_after: "client.embeddings.create"
+    change_type: renamed_method
+    before: |
+      import openai
+      response = openai.Embedding.create(
+          model="text-embedding-ada-002",
+          input="Hello world"
+      )
+    after: |
+      from openai import OpenAI
+      client = OpenAI()
+      response = client.embeddings.create(
+          model="text-embedding-ada-002",
+          input="Hello world"
+      )
+    detection:
+      regex:
+        - "openai\\.Embedding\\.create"
+    migration_note: "Use client.embeddings.create(). Response structure also changed — access embeddings via response.data[0].embedding."
+
+  - symbol_before: "openai.Image.create"
+    symbol_after: "client.images.generate"
+    change_type: renamed_method
+    before: |
+      import openai
+      response = openai.Image.create(
+          prompt="A cat",
+          n=1,
+          size="1024x1024"
+      )
+    after: |
+      from openai import OpenAI
+      client = OpenAI()
+      response = client.images.generate(
+          prompt="A cat",
+          n=1,
+          size="1024x1024"
+      )
+    detection:
+      regex:
+        - "openai\\.Image\\.create"
+    migration_note: "Use client.images.generate(). Also: client.images.edit() and client.images.create_variation()."
+
+  - symbol_before: "openai.api_key"
+    symbol_after: "OpenAI(api_key=...)"
+    change_type: parameter_removed
+    before: |
+      import openai
+      openai.api_key = "sk-..."
+    after: |
+      from openai import OpenAI
+      client = OpenAI(api_key="sk-...")
+    detection:
+      regex:
+        - "openai\\.api_key\\s*="
+    migration_note: "API key is now passed to the client constructor. The OPENAI_API_KEY environment variable is still auto-detected."
+
+  - symbol_before: "openai.error.OpenAIError"
+    symbol_after: "openai.OpenAIError"
+    change_type: renamed_class
+    before: |
+      import openai
+      try:
+          openai.ChatCompletion.create(...)
+      except openai.error.RateLimitError:
+          ...
+      except openai.error.AuthenticationError:
+          ...
+    after: |
+      from openai import OpenAI, RateLimitError, AuthenticationError
+      client = OpenAI()
+      try:
+          client.chat.completions.create(...)
+      except RateLimitError:
+          ...
+      except AuthenticationError:
+          ...
+    detection:
+      regex:
+        - "openai\\.error\\."
+    migration_note: "Error classes moved from openai.error module to top-level openai package. Import them directly."
+
+  - symbol_before: "openai.embeddings_utils"
+    symbol_after: "(removed — use client.embeddings.create + numpy)"
+    change_type: removed_method
+    before: |
+      from openai.embeddings_utils import get_embedding, cosine_similarity
+      embedding = get_embedding("text", engine="text-embedding-ada-002")
+      sim = cosine_similarity(emb1, emb2)
+    after: |
+      from openai import OpenAI
+      import numpy as np
+      client = OpenAI()
+      response = client.embeddings.create(input="text", model="text-embedding-ada-002")
+      embedding = response.data[0].embedding
+      sim = np.dot(emb1, emb2)  # cosine similarity manually
+    detection:
+      regex:
+        - "from openai\\.embeddings_utils import"
+        - "openai\\.embeddings_utils"
+    migration_note: "embeddings_utils.py was removed. Use client.embeddings.create() for embeddings and compute cosine similarity manually with numpy."
+
+sources:
+  - title: "Official v1.0.0 Migration Guide"
+    url: "https://github.com/openai/openai-python/discussions/742"
+  - title: "OpenAI API Changelog"
+    url: "https://developers.openai.com/api/docs/changelog"
+  - title: "Microsoft Learn: Migrate to OpenAI Python v1.x"
+    url: "https://learn.microsoft.com/en-us/azure/foundry-classic/openai/how-to/migration"
+  - title: "OpenAI Python SDK on PyPI"
+    url: "https://pypi.org/project/openai/"
+
+last_verified: "2026-08-15"
+confidence: high

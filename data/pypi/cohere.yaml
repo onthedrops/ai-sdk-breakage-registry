@@ -1,0 +1,236 @@
+package: cohere
+ecosystem: pypi
+from_version_range: "<5.0.0"
+to_version_range: ">=5.0.0"
+severity: high
+category: api_break
+summary: "Cohere Python SDK v5.0.0 migrates to API v2: the v2 surface is exposed via a new ClientV2 class, chat collapses preamble/chat_history/message into messages, the Generate API is deprecated, streaming events are redesigned, many methods and parameters are removed, and tools move to JSON Schema."
+
+changes:
+  - symbol_before: "cohere.Client"
+    symbol_after: "cohere.ClientV2"
+    change_type: renamed_class
+    before: |
+      import cohere
+      co = cohere.Client(api_key="<YOUR API KEY>")
+    after: |
+      import cohere
+      co = cohere.ClientV2(api_key="<YOUR API KEY>")
+    detection:
+      regex:
+        - 'cohere\.Client\('
+    migration_note: "The v2 API surface is exposed through a new ClientV2 class rather than the v1 Client class. The old Client class still exists for v1 compatibility, but all new v2 features (messages-based chat, tool-call IDs, JSON-Schema tools) require ClientV2. This is the single most impactful change when migrating from API v1 to v2."
+
+  - symbol_before: "chat(preamble=, chat_history=, message=)"
+    symbol_after: "chat(messages=[{'role': ...}])"
+    change_type: parameter_renamed
+    before: |
+      res = co_v1.chat(
+          model="command-a-03-2025",
+          preamble="You respond in concise sentences.",
+          chat_history=[
+              {"role": "user", "message": "Hello"},
+              {"role": "chatbot", "message": "Hi, how can I help you today?"},
+          ],
+          message="I'm joining a new startup called Co1t today.",
+      )
+    after: |
+      res = co_v2.chat(
+          model="command-a-plus-05-2026",
+          messages=[
+              {"role": "system", "content": "You respond in concise sentences."},
+              {"role": "user", "content": "Hello"},
+              {"role": "assistant", "content": "Hi, how can I help you today?"},
+              {"role": "user", "content": "I'm joining a new startup called Co1t today."},
+          ],
+      )
+    detection:
+      regex:
+        - 'preamble='
+        - 'chat_history='
+        - '"role":\s*"chatbot"'
+    migration_note: "The v1 chat signature used three separate parameters — preamble, chat_history, and message. In v2 these collapse into a single messages list. The preamble becomes a system-role message; the per-message \"message\" key becomes \"content\"; and the \"chatbot\" role is renamed to \"assistant\". The top-level message= kwarg is removed entirely."
+
+  - symbol_before: "res.text"
+    symbol_after: "res.message.content[0].text"
+    change_type: return_type_changed
+    before: |
+      res = co_v1.chat(model="command-a-03-2025", message="What is 2 + 2")
+      print(res.text)
+    after: |
+      res = co_v2.chat(
+          model="command-a-plus-05-2026",
+          messages=[{"role": "user", "content": "What is 2 + 2"}],
+      )
+      print(res.message.content[0].text)
+    detection:
+      regex:
+        - '\bres\.text\b'
+    migration_note: "Chat response access path changed. v1 exposed the generated text directly as res.text. v2 nests it under res.message.content[0].text because a chat response can contain multiple content blocks (text, tool calls, etc.). Any code that reads .text off the response object breaks."
+
+  - symbol_before: "chat_stream(chunk.event_type == 'text-generation', chunk.text)"
+    symbol_after: "chat_stream(chunk.type == 'content-delta', chunk.delta.message.content.text)"
+    change_type: behavior_changed
+    before: |
+      res = co_v1.chat_stream(model="command-a-03-2025", message=message)
+      for chunk in res:
+          if chunk.event_type == "text-generation":
+              print(chunk.text, end="")
+    after: |
+      res = co_v2.chat_stream(
+          model="command-a-plus-05-2026",
+          messages=[{"role": "user", "content": message}],
+      )
+      for chunk in res:
+          if chunk:
+              if chunk.type == "content-delta":
+                  print(chunk.delta.message.content.text, end="")
+    detection:
+      regex:
+        - 'chunk\.event_type'
+        - '"text-generation"'
+    migration_note: "Streaming events were redesigned. The discriminator moved from chunk.event_type to chunk.type, the text-generation event was renamed from \"text-generation\" to \"content-delta\", and the streamed text moved from chunk.text to chunk.delta.message.content.text. v2 stream chunks are also falsy for non-content events, so a truthiness guard (if chunk:) is recommended."
+
+  - symbol_before: "chat(streaming=True)"
+    symbol_after: "chat_stream(...)"
+    change_type: parameter_removed
+    before: |
+      res = co_v1.chat(model=..., message=..., streaming=True)
+    after: |
+      stream = co.chat_stream(message="...")  # streaming param injected automatically
+    detection:
+      regex:
+        - 'streaming\s*=\s*True'
+    migration_note: "The boolean streaming parameter on chat and generate was removed in SDK v5.0.0. To stream, call the dedicated chat_stream (or generate_stream) method instead; these methods inject the streaming flag automatically. Passing streaming=True to chat/generate now raises an error."
+
+  - symbol_before: "co.check_api_key()"
+    symbol_after: "# no direct replacement"
+    change_type: removed_method
+    before: |
+      co.check_api_key()
+    after: |
+      # no direct replacement — call any endpoint; a 401 response indicates an invalid key
+    detection:
+      regex:
+        - '\.check_api_key\('
+    migration_note: "SDK v5.0.0 removed a large set of methods outright. check_api_key is gone with no replacement. Also removed: loglikelihood, batch_generate, codebook, batch_tokenize, batch_detokenize, detect_language, generate_feedback, generate_preference_feedback, create_cluster_job, get_cluster_job, list_cluster_jobs, wait_for_cluster_job, create_custom_model, wait_for_custom_model, get_custom_model, get_custom_model_by_name, get_custom_model_metrics, list_custom_models. Any code calling these now fails with AttributeError."
+
+  - symbol_before: "co.generate(prompt=...)"
+    symbol_after: "co.chat(messages=[{'role': 'user', 'content': ...}])"
+    change_type: method_renamed
+    before: |
+      co.generate(prompt="Write me three bullet points for my resume")
+    after: |
+      co.chat(
+          model="command-a-03-2025",
+          messages=[{"role": "user", "content": "Write me three bullet points for my resume"}],
+      )
+    detection:
+      regex:
+        - '\.generate\('
+        - 'prompt='
+    migration_note: "The Generate API endpoint is deprecated (slated for shutdown Aug 26, 2025 per Cohere). co.generate(prompt=...) is replaced by co.chat(...) using the messages list. The prompt parameter has no v2 equivalent — its content moves into a user-role message's content. Several Generate-only parameters (num_generations, stop_sequences, end_sequences, logit_bias, truncate, preset) are not supported by Chat at all."
+
+  - symbol_before: 'tools=[{"parameter_definitions": {...}}]'
+    symbol_after: 'tools=[{"type": "function", "function": {"parameters": {...}}}]'
+    change_type: parameter_removed
+    before: |
+      tools_v1 = [
+          {
+              "name": "get_weather",
+              "description": "Gets the weather of a given location",
+              "parameter_definitions": {
+                  "location": {"description": "...", "type": "str", "required": True}
+              },
+          }
+      ]
+      # function returns {"temperature": "20C"}
+    after: |
+      tools_v2 = [
+          {
+              "type": "function",
+              "function": {
+                  "name": "get_weather",
+                  "description": "gets the weather of a given location",
+                  "parameters": {
+                      "type": "object",
+                      "properties": {"location": {"type": "string", "description": "..."}},
+                      "required": ["location"],
+                  },
+              },
+          }
+      ]
+      # function returns [{"temperature": "20C"}]
+    detection:
+      regex:
+        - 'parameter_definitions'
+        - '"type":\s*"str"'
+    migration_note: "Tool/function definitions moved from Cohere's bespoke parameter_definitions format to standard JSON Schema. The top-level dict must now wrap fields under a nested \"function\" object with \"type\": \"function\"; parameter_definitions becomes parameters; Python-style \"type\": \"str\" becomes JSON-Schema \"type\": \"string\"; and the per-field \"required\": True boolean is replaced by a schema-level \"required\": [\"location\"] array. Tool functions must also now return a list of objects rather than a single object."
+
+  - symbol_before: "res.tool_calls"
+    symbol_after: "res.message.tool_calls"
+    change_type: return_type_changed
+    before: |
+      res_v1 = co_v1.chat(model=..., message="What's the weather in Toronto?", tools=tools_v1)
+      print(res_v1.tool_calls)
+      # [ToolCall(name='get_weather', parameters={'location': 'Toronto'})]
+    after: |
+      res_v2 = co_v2.chat(model=..., messages=messages, tools=tools_v2)
+      print(res_v2.message.tool_calls)
+      # [ToolCallV2(id='get_weather_k88p0m8504w5', type='function', function=ToolCallV2Function(name='get_weather', arguments='{"location":"Toronto"}'))]
+    detection:
+      regex:
+        - '\.tool_calls\b'
+    migration_note: "Tool calls moved from response.tool_calls to response.message.tool_calls. The tool-call object itself changed shape: v1 exposed tc.name and tc.parameters (a dict); v2 exposes tc.id, tc.type, and tc.function.name / tc.function.arguments (arguments is a JSON string, requiring json.loads). v2 also introduces tool-call IDs (tc.id) that must be echoed back as tool_call_id when returning tool results."
+
+  - symbol_before: "co.tokenize(text=...)"
+    symbol_after: "co.tokenize(model=..., text=...)"
+    change_type: default_behavior_changed
+    before: |
+      # v5.1.x: tokenize used the hosted tokenizer; model was optional
+      co.tokenize(text="hello world")
+    after: |
+      # v5.2.0+: local tokenizer is the default; model is required
+      co.tokenize(model="command-a-03-2025", text="hello world")
+      # pass offline=False to revert to the hosted tokenizer
+      co.tokenize(model="command-a-03-2025", text="hello world", offline=False)
+    detection:
+      regex:
+        - '\.tokenize\('
+    migration_note: "In SDK v5.2.0 the tokenize and detokenize functions switched their default tokenizer from hosted to local. With the local tokenizer the response no longer includes token_strings. The model parameter also became required (previously optional). Pass offline=False to restore the old hosted-tokenizer behavior and token_strings field."
+
+  - symbol_before: "chat(connectors=, search_queries_only=, prompt_truncation=, conversation_id=, citation_quality=)"
+    symbol_after: "chat(tools=[...], citation_options={'mode': ...})"
+    change_type: parameter_removed
+    before: |
+      co_v1.chat(
+          message="who won euro 2024",
+          connectors=[{"id": "web-search"}],
+      )
+      # or: search_queries_only=True, prompt_truncation="AUTO", conversation_id=..., citation_quality="fast"
+    after: |
+      # connectors / search_queries_only / prompt_truncation / conversation_id are gone in v2.
+      # Web search is now expressed as a tool:
+      web_search_tool = [{"type": "function", "function": {"name": "web_search", ...}}]
+      co_v2.chat(model=..., messages=messages, tools=web_search_tool)
+      # citation_quality -> citation_options={"mode": ...}
+    detection:
+      regex:
+        - 'connectors\s*='
+        - 'search_queries_only'
+        - 'prompt_truncation'
+        - 'citation_quality'
+    migration_note: "Several v1 chat parameters have no v2 equivalent and are silently rejected: connectors (replaced by user-defined tools), search_queries_only, prompt_truncation, conversation_id (chat history is now managed entirely by the developer via messages), and force_single_step (all tool calls are multi-step by default). citation_quality is replaced by citation_options with a mode key."
+
+sources:
+  - title: "Migrating from API v1 to v2"
+    url: "https://docs.cohere.com/docs/migrating-v1-to-v2"
+  - title: "Cohere Python SDK 4.0.0 → 5.0.0 migration guide"
+    url: "https://github.com/cohere-ai/cohere-python/blob/main/4.0.0-5.0.0-migration-guide.md"
+  - title: "Migrating from co.generate to co.chat"
+    url: "https://docs.cohere.com/v1/docs/migrating-from-cogenerate-to-cochat"
+  - title: "Python SDK v5.2.0 release changelog"
+    url: "https://docs.cohere.com/changelog/python-sdk-v520-release"
+
+last_verified: "2026-08-22"
+confidence: high

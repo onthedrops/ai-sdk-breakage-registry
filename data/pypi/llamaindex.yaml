@@ -1,0 +1,262 @@
+package: llamaindex
+ecosystem: pypi
+from_version_range: "<0.10.0"
+to_version_range: ">=0.10.0"
+severity: critical
+category: api_break
+summary: "LlamaIndex v0.10 split the monolithic package into llama-index-core plus hundreds of integration packages. All import paths changed. v0.11 removed ServiceContext and LLMPredictor. v0.13 removed legacy agent classes and QueryPipeline."
+
+changes:
+  - symbol_before: "from llama_index import VectorStoreIndex, SimpleDirectoryReader, ServiceContext, StorageContext"
+    symbol_after: "from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings, StorageContext"
+    change_type: import_path_changed
+    before: |
+      from llama_index import VectorStoreIndex, SimpleDirectoryReader, ServiceContext, StorageContext
+    after: |
+      from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings, StorageContext
+    detection:
+      regex:
+        - "from llama_index import (VectorStoreIndex|SimpleDirectoryReader|ServiceContext|StorageContext|Document)"
+    migration_note: "All core abstractions moved from llama_index to llama_index.core in v0.10. Install llama-index-core package."
+
+  - symbol_before: "from llama_index.llms import OpenAI"
+    symbol_after: "from llama_index.llms.openai import OpenAI"
+    change_type: import_path_changed
+    before: |
+      from llama_index.llms import OpenAI
+    after: |
+      from llama_index.llms.openai import OpenAI
+    detection:
+      regex:
+        - "from llama_index\\.llms import "
+    migration_note: "LLM integrations are now separate packages (llama-index-llms-openai, etc.). Use fully-qualified provider namespace path."
+
+  - symbol_before: "from llama_index.vector_stores import PineconeVectorStore"
+    symbol_after: "from llama_index.vector_stores.pinecone import PineconeVectorStore"
+    change_type: import_path_changed
+    before: |
+      from llama_index.vector_stores import PineconeVectorStore
+    after: |
+      from llama_index.vector_stores.pinecone import PineconeVectorStore
+    detection:
+      regex:
+        - "from llama_index\\.vector_stores import "
+    migration_note: "Vector store integrations are now separate packages (llama-index-vector-stores-pinecone, etc.). Use fully-qualified provider path."
+
+  - symbol_before: "from llama_hub.slack.base import SlackReader"
+    symbol_after: "from llama_index.readers.slack import SlackReader"
+    change_type: import_path_changed
+    before: |
+      from llama_hub.slack.base import SlackReader
+    after: |
+      from llama_index.readers.slack import SlackReader
+    detection:
+      regex:
+        - "from llama_hub"
+    migration_note: "llama_hub is consolidated into llama_index.readers.<provider>. Install llama-index-readers-<provider> packages."
+
+  - symbol_before: "from llama_index import Document"
+    symbol_after: "from llama_index.core.schema import Document"
+    change_type: import_path_changed
+    before: |
+      from llama_index import Document
+    after: |
+      from llama_index.core.schema import Document
+    detection:
+      regex:
+        - "from llama_index import Document"
+    migration_note: "Document class moved to llama_index.core.schema. Same applies to TextNode and other core schema types."
+
+  - symbol_before: "from llama_index import Response"
+    symbol_after: "from llama_index.core.response.schema import Response"
+    change_type: import_path_changed
+    before: |
+      from llama_index import Response
+    after: |
+      from llama_index.core.response.schema import Response
+    detection:
+      regex:
+        - "from llama_index import Response"
+    migration_note: "Response class moved to llama_index.core.response.schema."
+
+  - symbol_before: "from llama_index import LLMPredictor"
+    symbol_after: "# LLMPredictor removed — pass LLM instance directly to Settings or module kwargs"
+    change_type: removed_class
+    before: |
+      from llama_index import LLMPredictor
+    after: |
+      # LLMPredictor removed — pass the LLM instance directly
+      # llm = OpenAI(model="gpt-4")
+      # Settings.llm = llm  or  index.as_query_engine(llm=llm)
+    detection:
+      regex:
+        - "LLMPredictor"
+    migration_note: "LLMPredictor was deprecated in v0.10 and removed in v0.11. Instantiate LLM directly and assign to Settings.llm."
+
+  - symbol_before: "ServiceContext.from_defaults(llm=..., embed_model=...)"
+    symbol_after: "Settings.llm = ...; Settings.embed_model = ..."
+    change_type: removed_class
+    before: |
+      from llama_index import ServiceContext, set_global_service_context
+      service_context = ServiceContext.from_defaults(llm=OpenAI(), embed_model=OpenAIEmbedding())
+      set_global_service_context(service_context)
+    after: |
+      from llama_index.core import Settings
+      Settings.llm = OpenAI()
+      Settings.embed_model = OpenAIEmbedding()
+    detection:
+      regex:
+        - "ServiceContext"
+        - "set_global_service_context"
+    migration_note: "ServiceContext was deprecated in v0.10 and removed in v0.11. Replaced by the global Settings object with lazy instantiation. Configure via direct attribute assignment."
+
+  - symbol_before: "from llama_index.core.query_pipeline import QueryPipeline"
+    symbol_after: "from llama_index.core.workflow import Workflow, StartEvent, StopEvent"
+    change_type: api_removed
+    before: |
+      from llama_index.core.query_pipeline import QueryPipeline
+      qp = QueryPipeline(modules={...}, verbose=True)
+      response = qp.run(query="...")
+    after: |
+      from llama_index.core.workflow import Workflow, StartEvent, StopEvent, Context, step
+      class MyWorkflow(Workflow):
+          @step
+          async def my_step(self, ctx: Context, ev: StartEvent) -> StopEvent:
+              return StopEvent(result="...")
+    detection:
+      regex:
+        - "QueryPipeline"
+        - "from llama_index.*query_pipeline"
+    migration_note: "QueryPipeline and all component classes deprecated in v0.11, removed in v0.13. Replaced by event-driven Workflows with @step decorators."
+
+  - symbol_before: "from llama_index.core.agent import ReActAgent"
+    symbol_after: "from llama_index.core.agent.workflow import ReActAgent"
+    change_type: removed_class
+    before: |
+      from llama_index.core.agent import ReActAgent
+      agent = ReActAgent.from_tools([tool], llm=llm, verbose=True)
+      response = agent.chat("What is 6 times 7?")
+    after: |
+      from llama_index.core.agent.workflow import ReActAgent
+      agent = ReActAgent(tools=[tool], llm=llm)
+      response = await agent.run("What is 6 times 7?")
+    detection:
+      regex:
+        - "from llama_index\\.core\\.agent import ReActAgent"
+        - "ReActAgent\\.from_tools"
+    migration_note: "Old ReActAgent removed in v0.13. New ReActAgent from llama_index.core.agent.workflow uses direct instantiation (not from_tools) and async .run() (not .chat())."
+
+  - symbol_before: "from llama_index.core.agent import FunctionCallingAgent"
+    symbol_after: "from llama_index.core.agent.workflow import FunctionAgent"
+    change_type: removed_class
+    before: |
+      from llama_index.core.agent import FunctionCallingAgent
+      agent = FunctionCallingAgent.from_tools([tool], llm=llm)
+      response = agent.chat("...")
+    after: |
+      from llama_index.core.agent.workflow import FunctionAgent
+      agent = FunctionAgent(tools=[tool], llm=llm)
+      response = await agent.run("...")
+    detection:
+      regex:
+        - "from llama_index\\.core\\.agent import FunctionCallingAgent"
+        - "FunctionCallingAgent\\.from_tools"
+    migration_note: "FunctionCallingAgent removed in v0.13. Replaced by FunctionAgent from llama_index.core.agent.workflow. Uses native function calling, direct instantiation, and async .run()."
+
+  - symbol_before: "from llama_index.core.agent import AgentRunner"
+    symbol_after: "from llama_index.core.agent.workflow import AgentWorkflow"
+    change_type: removed_class
+    before: |
+      from llama_index.core.agent import AgentRunner
+      agent = AgentRunner(worker, verbose=True)
+      response = agent.chat("...")
+    after: |
+      from llama_index.core.agent.workflow import AgentWorkflow
+      workflow = AgentWorkflow(agents=[agent], root_agent="...")
+      response = await workflow.run("...")
+    detection:
+      regex:
+        - "from llama_index\\.core\\.agent import AgentRunner"
+        - "AgentRunner\\("
+    migration_note: "AgentRunner/AgentWorker architecture removed in v0.13. Replaced by AgentWorkflow from llama_index.core.agent.workflow."
+
+  - symbol_before: "from llama_index.core.agent import OpenAIAgent"
+    symbol_after: "from llama_index.core.agent.workflow import FunctionAgent"
+    change_type: removed_class
+    before: |
+      from llama_index.core.agent import OpenAIAgent
+      agent = OpenAIAgent.from_tools(tools, llm=llm)
+    after: |
+      from llama_index.core.agent.workflow import FunctionAgent
+      agent = FunctionAgent(tools=tools, llm=llm)
+    detection:
+      regex:
+        - "from llama_index\\.core\\.agent import OpenAIAgent"
+        - "OpenAIAgent\\.from_tools"
+    migration_note: "OpenAIAgent removed in v0.13. Migrate to FunctionAgent from llama_index.core.agent.workflow."
+
+  - symbol_before: "agent.chat('...')"
+    symbol_after: "await agent.run('...')"
+    change_type: behavior_changed
+    before: |
+      response = agent.chat("What is 6 times 7?")
+    after: |
+      response = await agent.run("What is 6 times 7?")
+    detection:
+      regex:
+        - "agent\\.chat\\("
+    migration_note: "New workflow-based agents (FunctionAgent, ReActAgent, CodeActAgent, AgentWorkflow) only expose async .run(). No synchronous .chat() method. Refactor to async/await or wrap in asyncio.run()."
+
+  - symbol_before: "from llama_index import GPTSimpleVectorIndex"
+    symbol_after: "from llama_index.core import VectorStoreIndex"
+    change_type: renamed_class
+    before: |
+      from llama_index import GPTSimpleVectorIndex
+    after: |
+      from llama_index.core import VectorStoreIndex
+    detection:
+      regex:
+        - "GPTSimpleVectorIndex"
+        - "GPTVectorStoreIndex"
+    migration_note: "GPTSimpleVectorIndex and GPTVectorStoreIndex consolidated into VectorStoreIndex. Integrate with various vector databases via the vector_store parameter."
+
+  - symbol_before: "PromptHelper(max_input_size=...)"
+    symbol_after: "Settings.context_window = ..."
+    change_type: parameter_renamed
+    before: |
+      from llama_index import PromptHelper
+      prompt_helper = PromptHelper(max_input_size=3900, num_output=512, chunk_overlap_ratio=0.1)
+    after: |
+      from llama_index.core import Settings
+      Settings.context_window = 3900
+      Settings.num_output = 512
+    detection:
+      regex:
+        - "PromptHelper"
+        - "max_input_size"
+    migration_note: "max_input_size parameter renamed to context_window. PromptHelper deprecated — set context_window and num_output on Settings directly."
+
+  - symbol_before: "index.as_chat_engine() (agent-based default)"
+    symbol_after: "index.as_chat_engine() returns CondensePlusContextChatEngine"
+    change_type: default_behavior_changed
+    before: |
+      chat_engine = index.as_chat_engine()
+    after: |
+      chat_engine = index.as_chat_engine()  # now returns CondensePlusContextChatEngine
+    detection:
+      regex:
+        - "as_chat_engine\\(\\)"
+    migration_note: "v0.13 changed default chat engine to CondensePlusContextChatEngine. Agent-based chat engines removed. Use workflow-based agents via AgentWorkflow for agent behavior."
+
+sources:
+  - title: "LlamaIndex v0.10 Announcement"
+    url: "https://www.llamaindex.ai/blog/llamaindex-v0-10-838e735948f8"
+  - title: "LlamaIndex v0.11 Introduction"
+    url: "https://www.llamaindex.ai/blog/introducing-llamaindex-0-11"
+  - title: "LlamaIndex Deprecated Terms"
+    url: "https://developers.llamaindex.ai/python/framework/changes/deprecated_terms/"
+  - title: "LlamaIndex Changelog"
+    url: "https://developers.llamaindex.ai/python/framework/changelog/"
+
+last_verified: "2026-08-22"
+confidence: high

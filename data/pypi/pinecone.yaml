@@ -1,0 +1,158 @@
+package: pinecone
+ecosystem: pypi
+from_version_range: "<3.0.0"
+to_version_range: ">=3.0.0"
+severity: critical
+category: api_break
+summary: "Pinecone Python SDK v3 replaced the module-level global API (pinecone.init() + pinecone.Index()) with an object-oriented Pinecone() client class, introduced the spec parameter for index creation, and reshaped the upsert/query data-plane APIs."
+
+changes:
+  - symbol_before: "pinecone.init(api_key=..., environment=...)"
+    symbol_after: "from pinecone import Pinecone; pc = Pinecone(api_key=...)"
+    change_type: api_removed
+    before: |
+      import pinecone
+      pinecone.init(api_key="YOUR_API_KEY", environment="us-west1-gcp")
+    after: |
+      from pinecone import Pinecone
+      pc = Pinecone(api_key="YOUR_API_KEY")
+    detection:
+      regex:
+        - "pinecone\\.init\\("
+    migration_note: "The global pinecone.init() function was removed entirely. The new entry point is the Pinecone client class. No compatibility shim; calling pinecone.init() raises AttributeError in v3."
+
+  - symbol_before: "pinecone.init(api_key=..., environment=...)"
+    symbol_after: "Pinecone(api_key=...)  # no environment argument"
+    change_type: parameter_removed
+    before: |
+      pinecone.init(api_key="YOUR_API_KEY", environment="us-west1-gcp")
+    after: |
+      pc = Pinecone(api_key="YOUR_API_KEY")
+    detection:
+      regex:
+        - "pinecone\\.init\\(.*environment"
+    migration_note: "The environment parameter was removed from client initialization. Cloud/region is now chosen per-index via the spec parameter at index creation time."
+
+  - symbol_before: "PINECONE_ENVIRONMENT env var"
+    symbol_after: "PINECONE_API_KEY env var only"
+    change_type: parameter_removed
+    before: |
+      os.environ['PINECONE_ENVIRONMENT'] = 'us-west1-gcp'
+    after: |
+      os.environ['PINECONE_API_KEY'] = 'YOUR_API_KEY'
+    detection:
+      regex:
+        - "PINECONE_ENVIRONMENT"
+    migration_note: "PINECONE_ENVIRONMENT environment variable removed. Only PINECONE_API_KEY is needed. Environment is specified per-index through ServerlessSpec or PodSpec."
+
+  - symbol_before: "pinecone.create_index(name=..., dimension=...)"
+    symbol_after: "pc.create_index(name=..., dimension=..., spec=ServerlessSpec(...))"
+    change_type: parameter_required
+    before: |
+      pinecone.create_index(name="my-index", dimension=1536)
+    after: |
+      from pinecone import Pinecone, ServerlessSpec
+      pc = Pinecone(api_key="YOUR_API_KEY")
+      pc.create_index(name="my-index", dimension=1536, metric="cosine", spec=ServerlessSpec(cloud="aws", region="us-east-1"))
+    detection:
+      regex:
+        - "pinecone\\.create_index\\("
+    migration_note: "The spec parameter is now required on create_index(). Must pass ServerlessSpec(cloud, region) or PodSpec(environment, pod_type)."
+
+  - symbol_before: "pinecone.create_index(name=..., index_type=..., index_config=...)"
+    symbol_after: "pc.create_index(name=..., spec=...)"
+    change_type: parameter_removed
+    before: |
+      pinecone.create_index(name="my-index", dimension=1536, index_type=..., index_config=...)
+    after: |
+      pc.create_index(name="my-index", dimension=1536, spec=ServerlessSpec(cloud="aws", region="us-east-1"))
+    detection:
+      regex:
+        - "index_type\\s*="
+        - "index_config\\s*="
+    migration_note: "index_type and index_config parameters removed from create_index(). Index-type configuration is now expressed through the spec object."
+
+  - symbol_before: "pinecone.Index('my-index')"
+    symbol_after: "pc.Index('my-index')"
+    change_type: method_renamed
+    before: |
+      index = pinecone.Index("my-index")
+    after: |
+      pc = Pinecone(api_key="YOUR_API_KEY")
+      index = pc.Index("my-index")
+    detection:
+      regex:
+        - "pinecone\\.Index\\("
+    migration_note: "Index() moved from a module-level function to an instance method on the Pinecone client. Must be called on a Pinecone instance."
+
+  - symbol_before: "pinecone.list_indexes()"
+    symbol_after: "pc.list_indexes()"
+    change_type: api_removed
+    before: |
+      pinecone.list_indexes()
+      pinecone.delete_index("my-index")
+      pinecone.describe_index("my-index")
+    after: |
+      pc.list_indexes()
+      pc.delete_index("my-index")
+      pc.describe_index("my-index")
+    detection:
+      regex:
+        - "pinecone\\.(list_indexes|delete_index|describe_index|configure_index)\\("
+    migration_note: "All control-plane operations moved from module-level functions to instance methods on the Pinecone client object."
+
+  - symbol_before: "index.upsert([('id', [0.1], {...})])"
+    symbol_after: "index.upsert(vectors=[{'id': '...', 'values': [...], 'metadata': {...}}])"
+    change_type: parameter_required
+    before: |
+      index.upsert([("vec1", [0.1, 0.2, 0.3], {"genre": "drama"})])
+    after: |
+      index.upsert(vectors=[{"id": "vec1", "values": [0.1, 0.2, 0.3], "metadata": {"genre": "drama"}}])
+    detection:
+      regex:
+        - "\\.upsert\\(\\["
+    migration_note: "The vector list must now be passed as the named keyword argument vectors= rather than positionally. v3 accepts dicts, Vector objects, and tuples."
+
+  - symbol_before: "response['matches'][0]['id']"
+    symbol_after: "response.matches[0].id"
+    change_type: behavior_changed
+    before: |
+      response = index.query(vector=[0.1, 0.2, 0.3], top_k=10)
+      for match in response["matches"]:
+          print(match["id"], match["score"], match["metadata"])
+    after: |
+      response = index.query(vector=[0.1, 0.2, 0.3], top_k=10)
+      for match in response.matches:
+          print(match.id, match.score, match.metadata)
+    detection:
+      regex:
+        - "response\\[\"matches\"\\]"
+        - "match\\[\"id\"\\]"
+    migration_note: "Query response changed from dict-like object to typed object with attribute access. Use response.matches and match.id instead of dict-style indexing."
+
+  - symbol_before: "pip install pinecone-client"
+    symbol_after: "pip install pinecone"
+    change_type: import_path_changed
+    before: |
+      pip install pinecone-client
+      import pinecone
+    after: |
+      pip install pinecone
+      from pinecone import Pinecone
+    detection:
+      regex:
+        - "pinecone-client"
+    migration_note: "Package name renamed from pinecone-client to pinecone (enforced from v6.0.0). Remove pinecone-client from dependencies and add pinecone."
+
+sources:
+  - title: "Pinecone Python SDK CHANGELOG"
+    url: "https://github.com/pinecone-io/pinecone-client/blob/main/CHANGELOG.md"
+  - title: "Pinecone SDK Upgrading Guide"
+    url: "https://github.com/pinecone-io/pinecone-python-client/blob/main/docs/upgrading.md"
+  - title: "Pinecone Python SDK Docs"
+    url: "https://sdk.pinecone.io/python/how-to/vectors/upsert-and-query.html"
+  - title: "Pinecone SDK Overview"
+    url: "https://docs.pinecone.io/reference/sdks/python/overview"
+
+last_verified: "2026-08-22"
+confidence: high
