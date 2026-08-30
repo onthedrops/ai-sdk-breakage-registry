@@ -65,7 +65,7 @@
           },
           "change_type": {
             "type": "string",
-            "enum": ["renamed_method", "removed_method", "renamed_class", "removed_class", "parameter_renamed", "parameter_removed", "parameter_required", "return_type_changed", "import_path_changed", "package_renamed", "default_behavior_changed", "platform_requirement_added"],
+            "enum": ["import_path_changed", "renamed_function", "renamed_method", "renamed_class", "method_renamed", "removed_method", "removed_class", "parameter_required", "parameter_removed", "parameter_renamed", "api_removed", "behavior_changed", "default_behavior_changed", "return_type_changed", "platform_requirement_added", "package_renamed"],
             "description": "Type of change"
           },
           "before": {
