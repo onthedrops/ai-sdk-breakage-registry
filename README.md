@@ -1,6 +1,7 @@
 # ai-sdk-breakage-registry
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Verify Registry](https://github.com/onthedrops/ai-sdk-breakage-registry/actions/workflows/verify-registry.yml/badge.svg)](https://github.com/onthedrops/ai-sdk-breakage-registry/actions/workflows/verify-registry.yml)
 [![Tests](https://img.shields.io/badge/tests-53%20passing-brightgreen)](https://github.com/onthedrops/ai-sdk-breakage-registry)
 [![Coverage](https://img.shields.io/badge/SDKs-19%20packages%20%7C%20234%20changes-blue)](https://github.com/onthedrops/ai-sdk-breakage-registry)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
