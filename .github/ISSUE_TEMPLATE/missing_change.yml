@@ -1,0 +1,50 @@
+name: Missing breaking change
+title: "[Missing change] <package> <from_version> → <to_version>"
+description: Report a breaking change that isn't in the registry
+labels: ["missing-change"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a missing breaking change. Please fill out the fields below.
+  - type: input
+    id: package
+    attributes:
+      label: Package name
+      placeholder: e.g. openai, langchain, chromadb
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Version transition
+      placeholder: e.g. 0.x → 1.x
+    validations:
+      required: true
+  - type: textarea
+    id: before
+    attributes:
+      label: Deprecated code pattern
+      description: The code that no longer works after upgrading
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: after
+    attributes:
+      label: New code pattern
+      description: What the code should look like after migration
+      render: python
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Official documentation link
+      description: Link to the migration guide, changelog, or release notes
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context

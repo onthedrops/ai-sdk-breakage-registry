@@ -1,8 +1,13 @@
 # ai-sdk-breakage-registry
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://img.shields.io/badge/tests-53%20passing-brightgreen)](https://github.com/onthedrops/ai-sdk-breakage-registry)
+[![Coverage](https://img.shields.io/badge/SDKs-19%20packages%20%7C%20234%20changes-blue)](https://github.com/onthedrops/ai-sdk-breakage-registry)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
+
 **A community-maintained, machine-readable registry of breaking changes in AI SDKs.**
 
-When AI assistants write code, they may use SDK versions from their training data that have since shipped breaking changes. This registry maps specific version transitions to concrete code changes: renamed methods, removed parameters, changed return types, and new platform requirements — so tools like [devcheck-ai](https://github.com/devcheck-ai/devcheck-ai) can tell you **exactly what broke** when a version drifts, not just that it drifted.
+When AI assistants write code, they may use SDK versions from their training data that have since shipped breaking changes. This registry maps specific version transitions to concrete code changes: renamed methods, removed parameters, changed return types, and new platform requirements — so tools like [devcheck-ai](https://github.com/onthedrops/devcheck-ai) can tell you **exactly what broke** when a version drifts, not just that it drifted.
 
 ## The Problem
 
