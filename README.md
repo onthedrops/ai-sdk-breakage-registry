@@ -82,7 +82,7 @@ Each change includes:
 Fetch the generated JSON index:
 
 ```bash
-curl -s https://raw.githubusercontent.com/ai-sdk-breakage-registry/ai-sdk-breakage-registry/main/generated/registry.json
+curl -s https://raw.githubusercontent.com/onthedrops/ai-sdk-breakage-registry/main/generated/registry.json
 ```
 
 Or install as a Python package (coming soon):
@@ -212,12 +212,8 @@ We need community help to cover more SDKs and version transitions.
 
 ### SDKs we want help with
 
-- `chromadb` (breaking changes)
 - `tiktoken` (encoding API changes)
 - `langgraph` (major version changes)
-- Cohere SDK
-- Mistral AI SDK
-- `haystack` (v1 → v2 migration)
 - `qdrant-client` (major version changes)
 - `sentence-transformers` (major version changes)
 - Replicate Python SDK
@@ -250,7 +246,11 @@ ai-sdk-breakage-registry/
 │   │   ├── weaviate-client.yaml
 │   │   ├── google-generativeai.yaml
 │   │   ├── google-cloud-aiplatform.yaml
-│   │   └── transformers.yaml
+│   │   ├── transformers.yaml
+│   │   ├── chromadb.yaml
+│   │   ├── cohere.yaml
+│   │   ├── mistralai.yaml
+│   │   └── haystack-ai.yaml
 │   └── npm/                          # Node.js package entries
 │       ├── openai.yaml
 │       ├── anthropic.yaml
