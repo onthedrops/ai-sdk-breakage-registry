@@ -92,6 +92,23 @@ Or install as a Python package (coming soon):
 pip install ai-sdk-breakage-registry
 ```
 
+### Browse the published site
+
+Every documented change has a page titled with the deprecated symbol, so searching the
+error you just hit finds the migration:
+
+<https://onthedrops.github.io/ai-sdk-breakage-registry/>
+
+The JSON is also published there at a stable, versioned path, which is the preferred
+integration point for tools:
+
+```bash
+curl -s https://onthedrops.github.io/ai-sdk-breakage-registry/v1/registry.json
+```
+
+The site is rebuilt on every push, and publication is gated on the registry passing
+verification, so a build that fails `verify_registry.py` never reaches the site.
+
 ### With devcheck-ai
 
 ```bash
