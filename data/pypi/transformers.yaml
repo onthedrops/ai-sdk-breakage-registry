@@ -150,8 +150,6 @@ sources:
     url: "https://huggingface.co/blog/transformers-v5"
   - title: "Transformers v5 Welcome Issue"
     url: "https://github.com/huggingface/transformers/issues/40822"
-  - title: "Transformers v5 on PyPI"
-    url: "https://pypi.org/project/transformers/"
 
 last_verified: "2026-08-15"
 confidence: high

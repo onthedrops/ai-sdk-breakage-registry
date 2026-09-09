@@ -163,8 +163,6 @@ sources:
     url: "https://developers.openai.com/api/docs/changelog"
   - title: "Microsoft Learn: Migrate to OpenAI Python v1.x"
     url: "https://learn.microsoft.com/en-us/azure/foundry-classic/openai/how-to/migration"
-  - title: "OpenAI Python SDK on PyPI"
-    url: "https://pypi.org/project/openai/"
 
 last_verified: "2026-08-15"
 confidence: high

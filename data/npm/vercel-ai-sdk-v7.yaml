@@ -58,8 +58,6 @@ sources:
     url: "https://ai-sdk.dev/docs/migration-guides/migration-guide-7-0"
   - title: "Vercel AI SDK 7 Announcement"
     url: "https://vercel.com/changelog/ai-sdk-7"
-  - title: "AI SDK 7 Production Agents Guide"
-    url: "https://www.developersdigest.tech/blog/vercel-ai-sdk-7-production-agents"
 
 last_verified: "2026-08-15"
 confidence: high

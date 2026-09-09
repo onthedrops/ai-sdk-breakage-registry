@@ -255,16 +255,6 @@ sources:
     url: "https://raw.githubusercontent.com/mistralai/client-python/main/MIGRATION.md"
   - title: "Mistral AI Official Migration Guides (V1→V2 + provider migration)"
     url: "https://docs.mistral.ai/resources/migration-guides"
-  - title: "AI Change Watch: mistral-client-python v2.0.0 release analysis"
-    url: "https://aichangewatch.com/event/mistral-client-python-v2-0-0-gh_20260310171204_0066"
-  - title: "Changecast: Mistral Python v2.0.0 engineering briefing"
-    url: "https://changecast.ai/story/mistral-python-v200-20260310-171201-4fef9a/engineering"
-  - title: "AI Change Watch: Mistral v2.9.0 drops 12 search-index operations"
-    url: "https://aichangewatch.com/event/mistral-mistral-client-v2-9-0-drops-12-search-index-operations-and-con-cur_20260804_mistral_sdk_surface"
-  - title: "newreleases.io: mistralai/client-python v2.2.0rc3"
-    url: "https://newreleases.io/project/github/mistralai/client-python/release/v2.2.0rc3"
-  - title: "Checklist registry: mistralai (runtime errors observed)"
-    url: "https://checklist.day/registry/mistralai"
 
 last_verified: "2026-08-22"
 confidence: high

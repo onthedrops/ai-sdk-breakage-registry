@@ -338,10 +338,6 @@ sources:
   url: https://docs.haystack.deepset.ai/docs/migration
 - title: 'Haystack GitHub Discussion #6684'
   url: https://github.com/deepset-ai/haystack/discussions/6684
-- title: Simplified Guide - Haystack Migration 1 to 2
-  url: https://www.simplified.guide/haystack/haystack-migrate-1-to-2
-- title: Haystack 2 Migration Guide
-  url: https://markaicode.com/haystack-2-migration-guide/
 - title: Shaping Haystack v2 - deepset Blog
   url: https://haystack.deepset.ai/blog/shaping-haystack-v2
 - title: 'Haystack GitHub Issue #6792'

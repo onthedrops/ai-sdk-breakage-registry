@@ -80,14 +80,10 @@ changes:
     migration_note: "Default stopWhen changed from 1 step to 20 steps. Set stopWhen: 1 explicitly to restore old behavior."
 
 sources:
-  - title: "AI SDK 6 Migration Guide (DeepWiki)"
-    url: "https://deepwiki.com/vercel/ai/7.4-migration-guides"
   - title: "Vercel AI SDK 6 Blog Post"
     url: "https://vercel.com/blog/ai-sdk-6"
-  - title: "AI SDK 5 to 6 Migration Guide"
-    url: "https://www.rabinarayanpatra.com/blogs/vercel-ai-sdk-5-to-6-migration-guide"
-  - title: "AI SDK v5 to v6 Migration Playbook"
-    url: "https://www.digitalapplied.com/blog/vercel-ai-sdk-v5-to-v6-migration-playbook-2026"
+  - title: "AI SDK 5.x to 6.0 Official Migration Guide"
+    url: "https://ai-sdk.dev/docs/migration-guides/migration-guide-6-0"
 
 last_verified: "2026-08-15"
 confidence: high

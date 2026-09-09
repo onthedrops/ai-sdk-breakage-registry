@@ -70,8 +70,6 @@ sources:
     url: "https://github.com/anthropics/anthropic-sdk-python/blob/main/CHANGELOG.md"
   - title: "Anthropic SDK Releases"
     url: "https://github.com/anthropics/anthropic-sdk-python/releases"
-  - title: "Anthropic SDK Changelog Tracker"
-    url: "https://aichangewatch.com/anthropic/sdk"
 
 last_verified: "2026-08-15"
 confidence: high

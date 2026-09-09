@@ -82,10 +82,6 @@
         {
           "title": "Anthropic SDK Releases",
           "url": "https://github.com/anthropics/anthropic-sdk-python/releases"
-        },
-        {
-          "title": "Anthropic SDK Changelog Tracker",
-          "url": "https://aichangewatch.com/anthropic/sdk"
         }
       ],
       "last_verified": "2026-08-15",
@@ -1239,14 +1235,6 @@
         {
           "title": "Haystack GitHub Discussion #6684",
           "url": "https://github.com/deepset-ai/haystack/discussions/6684"
-        },
-        {
-          "title": "Simplified Guide - Haystack Migration 1 to 2",
-          "url": "https://www.simplified.guide/haystack/haystack-migrate-1-to-2"
-        },
-        {
-          "title": "Haystack 2 Migration Guide",
-          "url": "https://markaicode.com/haystack-2-migration-guide/"
         },
         {
           "title": "Shaping Haystack v2 - deepset Blog",
@@ -2848,26 +2836,6 @@
         {
           "title": "Mistral AI Official Migration Guides (V1\u2192V2 + provider migration)",
           "url": "https://docs.mistral.ai/resources/migration-guides"
-        },
-        {
-          "title": "AI Change Watch: mistral-client-python v2.0.0 release analysis",
-          "url": "https://aichangewatch.com/event/mistral-client-python-v2-0-0-gh_20260310171204_0066"
-        },
-        {
-          "title": "Changecast: Mistral Python v2.0.0 engineering briefing",
-          "url": "https://changecast.ai/story/mistral-python-v200-20260310-171201-4fef9a/engineering"
-        },
-        {
-          "title": "AI Change Watch: Mistral v2.9.0 drops 12 search-index operations",
-          "url": "https://aichangewatch.com/event/mistral-mistral-client-v2-9-0-drops-12-search-index-operations-and-con-cur_20260804_mistral_sdk_surface"
-        },
-        {
-          "title": "newreleases.io: mistralai/client-python v2.2.0rc3",
-          "url": "https://newreleases.io/project/github/mistralai/client-python/release/v2.2.0rc3"
-        },
-        {
-          "title": "Checklist registry: mistralai (runtime errors observed)",
-          "url": "https://checklist.day/registry/mistralai"
         }
       ],
       "last_verified": "2026-08-22",
@@ -2991,10 +2959,6 @@
         {
           "title": "Microsoft Learn: Migrate to OpenAI Python v1.x",
           "url": "https://learn.microsoft.com/en-us/azure/foundry-classic/openai/how-to/migration"
-        },
-        {
-          "title": "OpenAI Python SDK on PyPI",
-          "url": "https://pypi.org/project/openai/"
         }
       ],
       "last_verified": "2026-08-15",
@@ -3149,7 +3113,7 @@
         },
         {
           "title": "Pinecone SDK Upgrading Guide",
-          "url": "https://github.com/pinecone-io/pinecone-python-client/blob/main/docs/upgrading.md"
+          "url": "https://raw.githubusercontent.com/pinecone-io/pinecone-python-client/main/README.md"
         },
         {
           "title": "Pinecone Python SDK Docs",
@@ -3288,10 +3252,6 @@
         {
           "title": "Transformers v5 Welcome Issue",
           "url": "https://github.com/huggingface/transformers/issues/40822"
-        },
-        {
-          "title": "Transformers v5 on PyPI",
-          "url": "https://pypi.org/project/transformers/"
         }
       ],
       "last_verified": "2026-08-15",
@@ -3882,10 +3842,6 @@
         {
           "title": "Vercel AI SDK 7 Announcement",
           "url": "https://vercel.com/changelog/ai-sdk-7"
-        },
-        {
-          "title": "AI SDK 7 Production Agents Guide",
-          "url": "https://www.developersdigest.tech/blog/vercel-ai-sdk-7-production-agents"
         }
       ],
       "last_verified": "2026-08-15",
@@ -3956,20 +3912,12 @@
       ],
       "sources": [
         {
-          "title": "AI SDK 6 Migration Guide (DeepWiki)",
-          "url": "https://deepwiki.com/vercel/ai/7.4-migration-guides"
-        },
-        {
           "title": "Vercel AI SDK 6 Blog Post",
           "url": "https://vercel.com/blog/ai-sdk-6"
         },
         {
-          "title": "AI SDK 5 to 6 Migration Guide",
-          "url": "https://www.rabinarayanpatra.com/blogs/vercel-ai-sdk-5-to-6-migration-guide"
-        },
-        {
-          "title": "AI SDK v5 to v6 Migration Playbook",
-          "url": "https://www.digitalapplied.com/blog/vercel-ai-sdk-v5-to-v6-migration-playbook-2026"
+          "title": "AI SDK 5.x to 6.0 Official Migration Guide",
+          "url": "https://ai-sdk.dev/docs/migration-guides/migration-guide-6-0"
         }
       ],
       "last_verified": "2026-08-15",
