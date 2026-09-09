@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Verify Registry](https://github.com/onthedrops/ai-sdk-breakage-registry/actions/workflows/verify-registry.yml/badge.svg)](https://github.com/onthedrops/ai-sdk-breakage-registry/actions/workflows/verify-registry.yml)
 [![Tests](https://img.shields.io/badge/tests-53%20passing-brightgreen)](https://github.com/onthedrops/ai-sdk-breakage-registry)
-[![Coverage](https://img.shields.io/badge/SDKs-19%20packages%20%7C%20234%20changes-blue)](https://github.com/onthedrops/ai-sdk-breakage-registry)
+[![Coverage](https://img.shields.io/badge/SDKs-20%20packages%20%7C%20244%20changes-blue)](https://github.com/onthedrops/ai-sdk-breakage-registry)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
 
 **A community-maintained, machine-readable registry of breaking changes in AI SDKs.**
@@ -72,8 +72,9 @@ Each change includes:
 | `transformers` | pypi | 4.x → 5.x | 7 |
 | `ai` (Vercel) | npm | 5.x → 6.x | 4 |
 | `ai` (Vercel) | npm | 6.x → 7.x | 3 |
+| `mcp` | pypi | 1.x → 2.x | 10 |
 
-**Total: 234 documented breaking changes across 19 packages.**
+**Total: 244 documented breaking changes across 20 packages.**
 
 ## How to Use
 
@@ -146,19 +147,19 @@ Fetches all source URLs for each package, extracts readable text from the pages,
 
 #### Latest content verification results
 
-Last run: August 22, 2026 (structural); content verification pending for Wave 2 packages (ChromaDB, Cohere, Mistral, Haystack)
+Last run: September 8, 2026 (structural); content verification pending for Wave 2 packages (ChromaDB, Cohere, Mistral, Haystack)
 
-**Structural verification** (all 19 packages, 234 changes):
+**Structural verification** (all 20 packages, 244 changes):
 
 | Check | Result |
 |-------|--------|
-| Structural validation | 234 passed, 0 errors |
-| Regex compilation | 567 passed, 0 errors |
-| Self-consistency | 801 passed, 0 errors |
-| Symbol containment | 1035 passed, 18 warnings (soft) |
-| URL syntax | 1110 passed, 0 errors |
-| Duplicate detection | 1129 passed, 0 errors |
-| Registry JSON sync | OK (234 changes) |
+| Structural validation | 244 passed, 0 errors |
+| Regex compilation | 608 passed, 0 errors |
+| Self-consistency | 852 passed, 0 errors |
+| Symbol containment | 1096 passed, 19 warnings (soft) |
+| URL syntax | 1174 passed, 0 errors |
+| Duplicate detection | 1194 passed, 0 errors |
+| Registry JSON sync | OK (244 changes) |
 
 **Content verification** (Wave 1 packages only — 113 changes verified against source docs):
 
