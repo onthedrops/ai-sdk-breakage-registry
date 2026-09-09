@@ -147,7 +147,7 @@ Fetches all source URLs for each package, extracts readable text from the pages,
 
 #### Latest content verification results
 
-Last run: September 8, 2026 (structural); content verification pending for Wave 2 packages (ChromaDB, Cohere, Mistral, Haystack)
+Last run: September 9, 2026 — structural and content verification, all 20 packages
 
 **Structural verification** (all 20 packages, 244 changes):
 
@@ -161,32 +161,35 @@ Last run: September 8, 2026 (structural); content verification pending for Wave 
 | Duplicate detection | 1194 passed, 0 errors |
 | Registry JSON sync | OK (244 changes) |
 
-**Content verification** (Wave 1 packages only — 113 changes verified against source docs):
+**Content verification** (all 20 packages, 244 changes) — source URLs are fetched and each change's API terms are checked against the live documentation:
 
 | Metric | Result |
 |--------|--------|
-| Unique source URLs fetched | 29 |
-| URLs returned valid content | 26 |
-| JS-rendered pages (unverifiable) | 3 |
+| Unique source URLs fetched | 58 |
+| URLs returned valid content | 58 |
+| JS-rendered pages (unverifiable) | 0 |
 | Failed fetches | 0 |
-| Changes verified against source docs | 104 / 113 (92%) |
-| Changes unverifiable (warning) | 9 |
+| Changes verified against source docs | 231 / 244 (95%) |
+| Changes unverifiable (warning) | 13 |
 | Errors | 0 |
 
-The 9 unverifiable changes are all from packages whose source documentation is JS-rendered (LangChain deprecation page, PyPI package pages) and therefore can't be text-matched automatically. The API terms being checked are correct — the pages just don't serve enough raw HTML for automated verification. These are tracked as warnings, not errors.
+All 13 unverifiable changes are cases where the cited page is live and official but no
+longer lists the specific symbol — LangChain reorganized its deprecation pages, and the
+Mistral and Transformers guides describe their changes narratively rather than naming every
+symbol. The changes themselves are documented; the citation just no longer proves them
+automatically. These are tracked as warnings, not errors.
 
 | Package | Changes | Verified | Unverifiable |
 |---------|---------|----------|-------------|
-| `openai` (pypi) | 7 | 6 | 1 (PyPI page is JS-rendered) |
-| `langchain` (pypi) | 51 | 42 | 9 (deprecation page is JS-rendered) |
-| `google-generativeai` (pypi) | 11 | 11 | 0 |
-| `google-cloud-aiplatform` (pypi) | 17 | 17 | 0 |
-| `transformers` (pypi) | 7 | 6 | 1 (PyPI page is JS-rendered) |
-| `anthropic` (pypi) | 3 | 3 | 0 |
-| `openai` (npm) | 5 | 5 | 0 |
-| `ai` (Vercel v6) (npm) | 3 | 2 | 1 (deepwiki page is JS-rendered) |
-| `ai` (Vercel v7) (npm) | 4 | 4 | 0 |
-| `@google/generative-ai` (npm) | 5 | 5 | 0 |
+| `langchain` 0.1→0.2 (pypi) | 51 | 43 | 8 (symbols no longer on deprecation page) |
+| `langchain` 0.2→1.0 (pypi) | 16 | 13 | 3 (symbols no longer on deprecation page) |
+| `mistralai` (pypi) | 13 | 12 | 1 (guide is narrative, not symbol-by-symbol) |
+| `transformers` (pypi) | 7 | 6 | 1 (`TRANSFORMERS_CACHE` not named in source) |
+| All other 16 entries | 157 | 157 | 0 |
+
+Sources are restricted to official documentation — vendor migration guides, changelogs,
+release notes, and repository files. Third-party summaries and AI-generated change digests
+are not accepted as citations.
 
 ### CI Workflow
 
