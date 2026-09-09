@@ -35,7 +35,9 @@ from __future__ import annotations
 import html
 import json
 import pathlib
+import datetime
 import re
+import time
 import sys
 import time
 import urllib.error
@@ -45,6 +47,13 @@ import urllib.request
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+# An entry older than this is flagged for re-verification. The README's
+# freshness claim is only meaningful if something enforces it.
+STALE_AFTER_DAYS = 180
+
+# Per-pattern wall-clock budget against adversarial input.
+REGEX_TIME_BUDGET_S = 0.025
 DATA_PYPI = ROOT / "data" / "pypi"
 DATA_NPM = ROOT / "data" / "npm"
 
@@ -91,14 +100,31 @@ class CheckResult:
     def success(self) -> bool:
         return len(self.errors) == 0
 
-    def report(self, strict: bool = False) -> int:
-        fail = self.errors if not strict else self.errors + self.warnings
+    def report(self, strict: bool = False, max_warnings: int | None = None) -> int:
+        """Print the summary and return a process exit code.
+
+        Errors always fail. Warnings fail under --strict, or under
+        --max-warnings N once the count exceeds N. The budget exists because
+        warnings accumulate as vendor docs get reorganized: a registry that
+        merely reports growing warnings while exiting 0 lets its own data rot
+        silently, which is the failure this project exists to prevent.
+        """
         for msg in self.warnings:
             print(f"  WARNING: {msg}")
         for msg in self.errors:
             print(f"  ERROR: {msg}")
         print(f"\n  {self.passed} checks passed, {len(self.warnings)} warnings, {len(self.errors)} errors")
-        if fail:
+
+        if self.errors:
+            return 1
+        if strict and self.warnings:
+            return 1
+        if max_warnings is not None and len(self.warnings) > max_warnings:
+            print(
+                f"\n  Warning budget exceeded: {len(self.warnings)} > {max_warnings}.\n"
+                "  Source documentation has drifted since the budget was set. Re-verify\n"
+                "  the affected entries, then lower or re-baseline --max-warnings."
+            )
             return 1
         return 0
 
@@ -175,6 +201,101 @@ def check_regex_compiles(result: CheckResult, yaml_path: pathlib.Path, entry: di
                 result.ok()
             except re.error as e:
                 result.error(f"{prefix}: invalid regex: {e}")
+
+
+def check_last_verified(result: CheckResult, yaml_path: pathlib.Path, entry: dict):
+    """Check that last_verified is a real, non-future, non-stale date.
+
+    The registry publishes this date on every entry as a freshness claim, so it
+    has to mean something. An unparseable or future date is an error; a date
+    older than STALE_AFTER_DAYS is a warning telling the maintainer to re-verify.
+    """
+    prefix = f"{yaml_path.name}: last_verified"
+    raw = entry.get("last_verified")
+
+    if not raw:
+        result.error(f"{prefix}: missing")
+        return
+
+    try:
+        seen = datetime.date.fromisoformat(str(raw).strip())
+    except ValueError:
+        result.error(f"{prefix}: {raw!r} is not an ISO date (YYYY-MM-DD)")
+        return
+
+    today = datetime.date.today()
+    if seen > today:
+        result.error(f"{prefix}: {seen} is in the future")
+        return
+
+    age = (today - seen).days
+    if age > STALE_AFTER_DAYS:
+        result.warn(
+            f"{prefix}: {seen} is {age} days old "
+            f"(policy is {STALE_AFTER_DAYS}); re-verify against source docs"
+        )
+        return
+
+    result.ok()
+
+
+def check_regex_safety(result: CheckResult, yaml_path: pathlib.Path, entry: dict):
+    """Check that detection regexes cannot hang on adversarial input.
+
+    Registry patterns are executed against user source code by devcheck-ai and
+    by the MCP server, so a catastrophically backtracking pattern is a denial of
+    service in someone else's toolchain, not just a slow test here.
+
+    Python's re has no timeout, so a long probe against a pathological pattern
+    would hang this checker rather than report it. Instead we use short probes
+    of increasing length and stop at the first one that blows the budget:
+    a pathological pattern already costs tens of milliseconds at 20 characters
+    (and over a second at 24), while a well-behaved pattern stays in
+    microseconds at every length, so the ladder separates them cheaply.
+    """
+    lengths = (12, 16, 20, 24)
+    budget = REGEX_TIME_BUDGET_S
+
+    def probes(n: int) -> list[str]:
+        return [
+            "a" * n,
+            ("a" * n) + "!",
+            ("ab" * n) + "!",
+            "(" * n,
+        ]
+
+    for i, change in enumerate(entry.get("changes", [])):
+        detection = change.get("detection", {})
+        regexes = detection.get("regex") or detection.get("import_patterns") or []
+        for j, pattern in enumerate(regexes):
+            prefix = f"{yaml_path.name}: change {i} regex {j}"
+            try:
+                compiled = re.compile(pattern)
+            except re.error:
+                continue  # already reported by check_regex_compiles
+
+            worst = 0.0
+            blown_at = None
+            for n in lengths:
+                for probe in probes(n):
+                    began = time.perf_counter()
+                    try:
+                        compiled.search(probe)
+                    except Exception:
+                        pass
+                    worst = max(worst, time.perf_counter() - began)
+                if worst > budget:
+                    blown_at = n
+                    break
+
+            if blown_at is not None:
+                result.error(
+                    f"{prefix}: pattern took {worst * 1000:.0f}ms on a "
+                    f"{blown_at}-char input (budget {budget * 1000:.0f}ms); "
+                    "catastrophic backtracking -- rewrite without nested quantifiers"
+                )
+            else:
+                result.ok()
 
 
 def check_self_consistency(result: CheckResult, yaml_path: pathlib.Path, entry: dict):
@@ -588,6 +709,14 @@ def main():
     check_urls = "--check-urls" in args
     check_content = "--check-content" in args
     strict = "--strict" in args
+    max_warnings = None
+    for arg in args:
+        if arg.startswith("--max-warnings="):
+            try:
+                max_warnings = int(arg.split("=", 1)[1])
+            except ValueError:
+                print(f"Invalid --max-warnings value: {arg}")
+                sys.exit(2)
 
     result = CheckResult()
 
@@ -601,7 +730,7 @@ def main():
     entries = load_all_yaml()
     if not entries:
         result.error("No YAML files found")
-        print(result.report(strict))
+        print(result.report(strict, max_warnings))
         sys.exit(1)
 
     print(f"\nLoaded {len(entries)} YAML source files\n")
@@ -616,6 +745,16 @@ def main():
     for yaml_path, entry in entries:
         check_regex_compiles(result, yaml_path, entry)
     print(f"  {result.passed} regex compilation checks passed\n")
+
+    print("── Regex Safety (backtracking budget) ──")
+    for yaml_path, entry in entries:
+        check_regex_safety(result, yaml_path, entry)
+    print(f"  {result.passed} regex safety checks passed\n")
+
+    print("── Freshness (last_verified) ──")
+    for yaml_path, entry in entries:
+        check_last_verified(result, yaml_path, entry)
+    print(f"  {result.passed} freshness checks passed\n")
 
     print("── Self-Consistency (regex matches 'before' code) ──")
     for yaml_path, entry in entries:
@@ -667,7 +806,7 @@ def main():
     print("=" * 60)
     print("Summary")
     print("=" * 60)
-    exit_code = result.report(strict)
+    exit_code = result.report(strict, max_warnings)
 
     if exit_code == 0:
         print("\nAll checks passed.")

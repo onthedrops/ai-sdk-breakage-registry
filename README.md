@@ -178,7 +178,10 @@ Last run: September 9, 2026 — structural and content verification, all 20 pack
 | Duplicate detection | 1194 passed, 0 errors |
 | Registry JSON sync | OK (244 changes) |
 
-**Content verification** (all 20 packages, 244 changes) — source URLs are fetched and each change's API terms are checked against the live documentation:
+**Content verification** (all 20 packages, 244 changes) — source URLs are fetched and each
+change's API terms are searched for in the live documentation. This confirms that a cited
+page still discusses the symbols involved. It does **not** prove the migration itself is
+correct: that judgement stays with the entry's author and reviewers.
 
 | Metric | Result |
 |--------|--------|
@@ -186,8 +189,8 @@ Last run: September 9, 2026 — structural and content verification, all 20 pack
 | URLs returned valid content | 58 |
 | JS-rendered pages (unverifiable) | 0 |
 | Failed fetches | 0 |
-| Changes verified against source docs | 231 / 244 (95%) |
-| Changes unverifiable (warning) | 13 |
+| Changes whose API terms were found in a cited source | 231 / 244 (95%) |
+| Changes whose terms were not found (warning) | 13 |
 | Errors | 0 |
 
 All 13 unverifiable changes are cases where the cited page is live and official but no
@@ -196,13 +199,18 @@ Mistral and Transformers guides describe their changes narratively rather than n
 symbol. The changes themselves are documented; the citation just no longer proves them
 automatically. These are tracked as warnings, not errors.
 
-| Package | Changes | Verified | Unverifiable |
+| Package | Changes | Terms found | Terms not found |
 |---------|---------|----------|-------------|
 | `langchain` 0.1→0.2 (pypi) | 51 | 43 | 8 (symbols no longer on deprecation page) |
 | `langchain` 0.2→1.0 (pypi) | 16 | 13 | 3 (symbols no longer on deprecation page) |
 | `mistralai` (pypi) | 13 | 12 | 1 (guide is narrative, not symbol-by-symbol) |
 | `transformers` (pypi) | 7 | 6 | 1 (`TRANSFORMERS_CACHE` not named in source) |
 | All other 16 entries | 157 | 157 | 0 |
+
+Every entry carries a `last_verified` date, which CI enforces: a missing, malformed, or
+future date fails the build, and an entry older than 180 days is flagged for
+re-verification. The weekly job runs against a warning budget, so documentation drift
+fails the run and opens an issue rather than accumulating silently.
 
 Sources are restricted to official documentation — vendor migration guides, changelogs,
 release notes, and repository files. Third-party summaries and AI-generated change digests

@@ -55,6 +55,14 @@ jobs:
   url-check:
     name: Source URL & Content Verification
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      # Current known-warning count. Raising this should be a deliberate act,
+      # not a silent one: if drift pushes the count above it, the run fails
+      # and files an issue instead of passing quietly.
+      WARNING_BUDGET: 19
     if: |
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.check-urls == true)
@@ -69,14 +77,28 @@ jobs:
         run: pip install pyyaml
 
       - name: Verify source URLs are live
-        run: python scripts/verify_registry.py --check-urls
+        run: python scripts/verify_registry.py --check-urls --max-warnings=${{ env.WARNING_BUDGET }}
 
       - name: Verify source content matches registry entries
-        run: python scripts/verify_registry.py --check-content
+        run: python scripts/verify_registry.py --check-content --max-warnings=${{ env.WARNING_BUDGET }}
 
-      - name: Create issue on failures
+      - name: Open an issue when sources drift
         if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "One or more source URLs are no longer accessible or content has drifted."
-          echo "Run locally: python scripts/verify_registry.py --check-urls --check-content"
-          exit 1
+          gh issue create \
+            --title "Source drift detected on $(date -u +%Y-%m-%d)" \
+            --label "verification" \
+            --body "The weekly verification run failed.
+
+          A source URL is unreachable, or documentation has drifted far enough that
+          the warning budget (\`${{ env.WARNING_BUDGET }}\`) was exceeded.
+
+          Reproduce locally:
+
+          \`\`\`bash
+          python scripts/verify_registry.py --check-urls --check-content
+          \`\`\`
+
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
