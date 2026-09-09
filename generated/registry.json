@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "total_changes": 234,
+  "total_changes": 244,
   "packages": [
     "@anthropic-ai/sdk",
     "@google/generative-ai",
@@ -13,6 +13,7 @@
     "haystack-ai",
     "langchain",
     "llamaindex",
+    "mcp",
     "mistralai",
     "openai",
     "pinecone",
@@ -2467,6 +2468,184 @@
         }
       ],
       "last_verified": "2026-08-22",
+      "confidence": "high"
+    },
+    {
+      "package": "mcp",
+      "ecosystem": "pypi",
+      "from_version_range": "<2.0.0",
+      "to_version_range": ">=2.0.0",
+      "severity": "high",
+      "category": "api_break",
+      "summary": "MCP Python SDK v2 renames FastMCP to MCPServer and moves it to mcp.server.mcpserver, switches all protocol type fields from camelCase to snake_case, renames McpError to MCPError with a new constructor signature, replaces httpx with httpx2, changes MCPServer.call_tool() to return CallToolResult, and moves transport parameters off the MCPServer constructor onto run().",
+      "changes": [
+        {
+          "symbol_before": "mcp.server.fastmcp.FastMCP",
+          "symbol_after": "mcp.server.mcpserver.MCPServer",
+          "change_type": "renamed_class",
+          "before": "from mcp.server.fastmcp import FastMCP\n\nmcp = FastMCP(\"Demo\")\n",
+          "after": "from mcp.server.mcpserver import MCPServer, Context\n\nmcp = MCPServer(\"Demo\")\n",
+          "detection": {
+            "regex": [
+              "from mcp\\.server\\.fastmcp import",
+              "mcp\\.server\\.fastmcp",
+              "FastMCP\\("
+            ]
+          },
+          "migration_note": "The FastMCP class is renamed MCPServer and all submodules under mcp.server.fastmcp.* move to mcp.server.mcpserver.* with the same structure. Importing the old module raises ModuleNotFoundError: No module named 'mcp.server.fastmcp'. The decorator API is unchanged: @mcp.tool(), @mcp.resource(), @mcp.prompt() take the same arguments and handler signatures. Related moves: ToolError and ResourceError now come from mcp.server.mcpserver.exceptions, FastMCPError is renamed MCPServerError, and ctx.fastmcp is now ctx.mcp_server."
+        },
+        {
+          "symbol_before": "tool.inputSchema",
+          "symbol_after": "tool.input_schema",
+          "change_type": "renamed_method",
+          "before": "tools = await session.list_tools()\nschema = tools.tools[0].inputSchema\ncursor = tools.nextCursor\n\nresult = await session.call_tool(\"my_tool\", {\"x\": 1})\nif result.isError:\n    ...\n",
+          "after": "tools = await session.list_tools()\nschema = tools.tools[0].input_schema\ncursor = tools.next_cursor\n\nresult = await session.call_tool(\"my_tool\", {\"x\": 1})\nif result.is_error:\n    ...\n",
+          "detection": {
+            "regex": [
+              "\\.inputSchema",
+              "\\.outputSchema",
+              "\\.isError",
+              "\\.nextCursor",
+              "\\.structuredContent",
+              "\\.mimeType",
+              "\\.protocolVersion"
+            ]
+          },
+          "migration_note": "All Pydantic model fields in the protocol types use snake_case for attribute access: inputSchema to input_schema, outputSchema to output_schema, isError to is_error, nextCursor to next_cursor, mimeType to mime_type, structuredContent to structured_content, serverInfo to server_info, protocolVersion to protocol_version, uriTemplate to uri_template, listChanged to list_changed, progressToken to progress_token. The JSON wire format is unchanged. Constructors still accept the camelCase spelling, so only attribute access breaks, producing AttributeError. Critically, model_dump() now emits snake_case keys that peers will not recognize; pass by_alias=True to restore wire format. No error is raised for this, the output is silently wrong."
+        },
+        {
+          "symbol_before": "McpError",
+          "symbol_after": "MCPError",
+          "change_type": "renamed_class",
+          "before": "from mcp.shared.exceptions import McpError\nfrom mcp.types import ErrorData, INVALID_REQUEST\n\nraise McpError(ErrorData(code=INVALID_REQUEST, message=\"bad input\"))\n",
+          "after": "from mcp.shared.exceptions import MCPError\nfrom mcp.types import INVALID_REQUEST\n\nraise MCPError(INVALID_REQUEST, \"bad input\")\n",
+          "detection": {
+            "regex": [
+              "McpError",
+              "from mcp\\.shared\\.exceptions import McpError"
+            ]
+          },
+          "migration_note": "McpError is renamed MCPError. The constructor signature also changed: it now takes code, message, and optional data directly rather than wrapping an ErrorData instance. Use MCPError.from_error_data(error_data) if you already hold an ErrorData. Error message access changed from e.error.message to e.message. MCPError is also exported from the top-level mcp package."
+        },
+        {
+          "symbol_before": "import httpx",
+          "symbol_after": "import httpx2",
+          "change_type": "import_path_changed",
+          "before": "import httpx\n\nhttp_client = httpx.AsyncClient(follow_redirects=True)\n",
+          "after": "import httpx2\n\nhttp_client = httpx2.AsyncClient(follow_redirects=True)\n",
+          "detection": {
+            "regex": [
+              "import httpx$",
+              "httpx\\.AsyncClient",
+              "except httpx\\.",
+              "httpx_sse"
+            ]
+          },
+          "migration_note": "The SDK depends on httpx2 instead of httpx and httpx-sse, and no longer installs httpx at all. Code that relied on mcp to pull in httpx now fails with ModuleNotFoundError: No module named 'httpx'. httpx2 is API-compatible, so usually only the import name changes. Two silent failure modes: an existing 'except httpx.ConnectError:' block keeps importing fine if httpx is installed by something else but never matches again, and passing an httpx.AsyncClient as http_client degrades subtly rather than raising. Auth providers now subclass httpx2.Auth, so httpx.AsyncClient(auth=provider) raises TypeError: Invalid \"auth\" argument. TLS also changes: httpx2 validates against the OS trust store rather than certifi."
+        },
+        {
+          "symbol_before": "MCPServer.call_tool() -> Sequence[ContentBlock] | dict",
+          "symbol_after": "MCPServer.call_tool() -> CallToolResult",
+          "change_type": "return_type_changed",
+          "before": "content, structured = await mcp.call_tool(\"my_tool\", {\"x\": 1})\n",
+          "after": "result = await mcp.call_tool(\"my_tool\", {\"x\": 1})\ncontent = result.content\nstructured = result.structured_content\n",
+          "detection": {
+            "regex": [
+              "\\w+,\\s*\\w+\\s*=\\s*await\\s+[\\w.]*call_tool\\("
+            ]
+          },
+          "migration_note": "MCPServer.call_tool() returns a CallToolResult (or an InputRequiredResult for multi-round tools) rather than leaking the internal conversion shapes. Read .content and .structured_content off the result instead of indexing or unpacking a tuple. Attempting to subscript the result raises TypeError: 'CallToolResult' object is not subscriptable. get_prompt() and read_resource() similarly may now return InputRequiredResult, so narrow with isinstance if you call them directly."
+        },
+        {
+          "symbol_before": "MCPServer(name, port=, host=, json_response=)",
+          "symbol_after": "mcp.run(transport=..., port=, host=, json_response=)",
+          "change_type": "parameter_removed",
+          "before": "from mcp.server.fastmcp import FastMCP\n\nmcp = FastMCP(\"Demo\", host=\"0.0.0.0\", port=9000, json_response=True)\nmcp.run(transport=\"streamable-http\")\n",
+          "after": "from mcp.server.mcpserver import MCPServer\n\nmcp = MCPServer(\"Demo\")\nmcp.run(transport=\"streamable-http\", host=\"0.0.0.0\", port=9000, json_response=True)\n",
+          "detection": {
+            "regex": [
+              "FastMCP\\([^)]*port=",
+              "FastMCP\\([^)]*json_response=",
+              "FastMCP\\([^)]*stateless_http=",
+              "settings\\.port\\s*="
+            ]
+          },
+          "migration_note": "Transport-specific parameters moved off the constructor onto run(), sse_app(), and streamable_http_app(). Affected: host, port, sse_path, message_path, streamable_http_path, json_response, stateless_http, max_request_body_size, event_store, retry_interval, transport_security. Passing them to the constructor raises TypeError: MCPServer.__init__() got an unexpected keyword argument 'port'. The mount_path parameter was removed entirely. Mutating mcp.settings.port after construction now raises ValueError since Settings no longer carries transport fields."
+        },
+        {
+          "symbol_before": "mcp.get_context()",
+          "symbol_after": "ctx: Context parameter injection",
+          "change_type": "removed_method",
+          "before": "@mcp.tool()\nasync def my_tool(x: int) -> str:\n    ctx = mcp.get_context()\n    await ctx.report_progress(1, 2)\n    return str(x)\n",
+          "after": "from mcp.server.mcpserver import Context\n\n@mcp.tool()\nasync def my_tool(x: int, ctx: Context) -> str:\n    await ctx.report_progress(1, 2)\n    return str(x)\n",
+          "detection": {
+            "regex": [
+              "get_context\\(\\)"
+            ]
+          },
+          "migration_note": "MCPServer.get_context() is removed. There is no ambient ContextVar to read from; context is injected by the framework as a declared parameter. Add ctx: Context to the handler signature instead. Context is imported from mcp.server.mcpserver."
+        },
+        {
+          "symbol_before": "from mcp.types import Content",
+          "symbol_after": "from mcp.types import ContentBlock",
+          "change_type": "renamed_class",
+          "before": "from mcp.types import Content, ResourceReference, Cursor\n",
+          "after": "from mcp.types import ContentBlock, ResourceTemplateReference\n# Use `str` instead of `Cursor` for pagination cursors\n",
+          "detection": {
+            "regex": [
+              "from mcp\\.types import[^\\n]*\\bContent\\b",
+              "ResourceReference",
+              "from mcp\\.types import[^\\n]*\\bCursor\\b"
+            ]
+          },
+          "migration_note": "Several type aliases were removed from mcp.types: Content becomes ContentBlock, ResourceReference becomes ResourceTemplateReference, Cursor is replaced by plain str, and AnyFunction by Callable[..., Any]. The ClientRequestType/ServerNotificationType family collapses to the bare names (ClientRequest, ServerNotification, and so on). These fail with ImportError on import. Note mcp.types itself still works as a permanent alias of the new standalone mcp-types package, so existing mcp.types imports do not need to change to mcp_types."
+        },
+        {
+          "symbol_before": "ServerNotification.model_validate(data).root",
+          "symbol_after": "server_notification_adapter.validate_python(data)",
+          "change_type": "behavior_changed",
+          "before": "from mcp.types import ClientRequest, ServerNotification\n\nrequest = ClientRequest.model_validate(data)\nactual_request = request.root\n",
+          "after": "from mcp.types import client_request_adapter, server_notification_adapter\n\nrequest = client_request_adapter.validate_python(data)\n# no .root access needed\n",
+          "detection": {
+            "regex": [
+              "\\.root\\b",
+              "JSONRPCMessage\\.model_validate",
+              "ClientRequest\\.model_validate"
+            ]
+          },
+          "migration_note": "The message union types (ClientRequest, ServerRequest, ClientNotification, ServerNotification, ClientResult, ServerResult, JSONRPCMessage) are no longer RootModel subclasses. They are plain unions, so .root access raises AttributeError and model_validate() is unavailable on them. Use the exported TypeAdapter instances instead: client_request_adapter, server_notification_adapter, jsonrpc_message_adapter, and so on. When constructing, the outer wrapper call is no longer needed. isinstance checks against the member classes still work."
+        },
+        {
+          "symbol_before": "Resource(uri=AnyUrl(...))",
+          "symbol_after": "Resource(uri='...')",
+          "change_type": "return_type_changed",
+          "before": "from pydantic import AnyUrl\nfrom mcp.types import Resource\n\nresource = Resource(name=\"test\", uri=AnyUrl(\"https://example.com\"))\nhost = resource.uri.host\n",
+          "after": "from mcp.types import Resource\n\nresource = Resource(name=\"test\", uri=\"https://example.com\")\n# parse with urllib.parse if you need components\n",
+          "detection": {
+            "regex": [
+              "AnyUrl\\(",
+              "\\.uri\\.scheme",
+              "\\.uri\\.host"
+            ]
+          },
+          "migration_note": "Resource URI fields are plain str rather than Pydantic AnyUrl, matching the MCP specification schema. Attribute access such as uri.scheme or uri.host now raises AttributeError; use urllib.parse instead. This allows relative paths like 'users/me' that v1 rejected. read_resource(), subscribe_resource(), and unsubscribe_resource() accept only str. Note that v1 normalized URIs during validation while v2 preserves the string exactly, so URIs on the wire may differ byte-for-byte."
+        }
+      ],
+      "sources": [
+        {
+          "title": "MCP Python SDK Migration Guide: v1 to v2",
+          "url": "https://github.com/modelcontextprotocol/python-sdk/blob/main/docs/migration.md"
+        },
+        {
+          "title": "MCP Python SDK Releases",
+          "url": "https://github.com/modelcontextprotocol/python-sdk/releases"
+        },
+        {
+          "title": "mcp.server.fastmcp removal shim source",
+          "url": "https://github.com/modelcontextprotocol/python-sdk/blob/main/src/mcp/server/fastmcp.py"
+        }
+      ],
+      "last_verified": "2026-09-08",
       "confidence": "high"
     },
     {
