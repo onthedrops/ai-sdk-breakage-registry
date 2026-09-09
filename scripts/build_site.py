@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import re
@@ -144,10 +145,18 @@ def build(out: Path) -> None:
     (out / "s").mkdir(parents=True)
     (out / "v1").mkdir(parents=True)
 
-    # Stable, versioned copies of the data.
+    # Stable, versioned copies of the data, with a digest published alongside.
+    #
+    # Served from the same origin as the data, the digest does not defend
+    # against a compromised origin -- whoever can rewrite one can rewrite the
+    # other. What it does give consumers is detection of truncated or corrupted
+    # downloads, and a value they can pin in their own config so that an
+    # unexpected change to the published registry fails loudly on their side.
     payload = REGISTRY.read_text()
-    (out / "registry.json").write_text(payload)
-    (out / "v1" / "registry.json").write_text(payload)
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    for target in (out, out / "v1"):
+        (target / "registry.json").write_text(payload)
+        (target / "registry.json.sha256").write_text(f"{digest}  registry.json\n")
 
     index_rows = []
     search_index = []
@@ -223,6 +232,10 @@ Every change is cited to official vendor documentation and re-verified against t
 <h2>Use the data</h2>
 <p>The registry is published as JSON at a stable path:</p>
 <pre><code>curl -s https://onthedrops.github.io/ai-sdk-breakage-registry/v1/registry.json</code></pre>
+<p>A SHA-256 digest is published next to it as
+<code>v1/registry.json.sha256</code>. Because it is served from this same origin it
+is not a defence against a compromised origin; it lets you detect a corrupted
+download, and pin a known-good value so an unexpected change fails on your side.</p>
 <p>An <a href="{REPO_URL}/tree/main/mcp">MCP server</a> exposes the same data to coding agents,
 so an assistant can check a call before it writes it.</p>
 
