@@ -109,6 +109,14 @@ curl -s https://onthedrops.github.io/ai-sdk-breakage-registry/v1/registry.json
 The site is rebuilt on every push, and publication is gated on the registry passing
 verification, so a build that fails `verify_registry.py` never reaches the site.
 
+### With a coding agent
+
+An [MCP server](mcp/README.md) exposes the registry so an agent can check a call
+before writing it. A server alone is not enough — nothing makes a model consult a
+tool it was not told about — so [`agent-rules/`](agent-rules/README.md) contains the
+rule text to drop into `CLAUDE.md`, `.cursorrules`, `AGENTS.md`, or Copilot
+instructions.
+
 ### With devcheck-ai
 
 ```bash
